@@ -54,6 +54,11 @@ export async function fetchAndHydrateUserData(userId: string) {
       supabase.from('tech_stack').select('*').eq('user_id', userId),
     ]);
 
+    const isNewUserDb =
+      (!projects || projects.length === 0) &&
+      (!subjects || subjects.length === 0) &&
+      (!revisionMatrix || revisionMatrix.length === 0);
+
     // Hydrate store state with database records if available
     useStepwiseStore.setState((state) => ({
       userStats: {
@@ -63,13 +68,16 @@ export async function fetchAndHydrateUserData(userId: string) {
         streak: profile?.streak ?? state.userStats.streak,
       },
       subjects: subjects && subjects.length > 0 ? subjects : state.subjects,
-      revisionMatrix: revisionMatrix && revisionMatrix.length > 0 ? revisionMatrix : state.revisionMatrix,
-      japaneseResources: japaneseResources && japaneseResources.length > 0 ? japaneseResources : state.japaneseResources,
       dailyFitnessLogs: dailyFitnessLogs && dailyFitnessLogs.length > 0 ? dailyFitnessLogs : state.dailyFitnessLogs,
       prRecords: prRecords && prRecords.length > 0 ? prRecords : state.prRecords,
       projects: projects && projects.length > 0 ? projects : state.projects,
       techStack: techStack && techStack.length > 0 ? techStack : state.techStack,
     }));
+
+    // If new user with empty tables in Supabase, seed current state into Supabase immediately!
+    if (isNewUserDb) {
+      await syncCurrentStateToCloud(useStepwiseStore.getState());
+    }
   } catch (err) {
     console.error('Error hydrating user data from Supabase:', err);
   }
@@ -137,7 +145,39 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
       await supabase.from('subjects').upsert(subjectPayloads);
     }
 
-    // 5. Sync Daily Fitness Logs
+    // 5. Sync Revision Matrix
+    if (state.revisionMatrix?.length) {
+      const revisionPayloads = state.revisionMatrix.map((r) => ({
+        id: r.id,
+        user_id: userId,
+        subject: r.subject,
+        chapter: r.chapter,
+        track: r.category,
+        revision1: !!r.checkpoints?.rev1,
+        revision2: !!r.checkpoints?.rev2,
+        revision3: !!r.checkpoints?.rev3,
+        pyqs_done: !!r.checkpoints?.pyq1,
+        notes_done: !!r.checkpoints?.short_notes,
+      }));
+      await supabase.from('revision_matrix').upsert(revisionPayloads);
+    }
+
+    // 6. Sync Japanese Resources
+    if (state.japaneseResources?.length) {
+      const jpPayloads = state.japaneseResources.map((j) => ({
+        id: j.id,
+        user_id: userId,
+        title: j.title,
+        type: j.resource_type,
+        episodes_or_chapters: j.target,
+        completed: j.completed,
+        hours_spent: j.completed,
+        level: j.level,
+      }));
+      await supabase.from('japanese_resources').upsert(jpPayloads);
+    }
+
+    // 7. Sync Daily Fitness Logs
     if (state.dailyFitnessLogs?.length) {
       const fitnessPayloads = state.dailyFitnessLogs.map((f) => ({
         id: f.id,
@@ -150,7 +190,7 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
       await supabase.from('daily_fitness_logs').upsert(fitnessPayloads);
     }
 
-    // 6. Sync PR Records
+    // 8. Sync PR Records
     if (state.prRecords?.length) {
       const prPayloads = state.prRecords.map((pr) => ({
         id: pr.id,
