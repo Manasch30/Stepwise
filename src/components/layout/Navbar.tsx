@@ -48,7 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-white/10 px-3 md:px-8 py-2.5">
-      <div className="flex items-center justify-between max-w-7xl mx-auto gap-2">
+      <div className="flex items-center justify-between max-w-7xl mx-auto gap-1.5 sm:gap-2">
         {/* Brand & Mobile Hamburger */}
         <div className="flex items-center gap-2 md:gap-3 shrink-0">
           {onOpenMobileDrawer && (
@@ -65,7 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
             <Layers className="w-4 h-4 md:w-5 md:h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-extrabold text-base md:text-lg tracking-wider text-white flex items-center gap-1.5">
+            <h1 className="font-extrabold text-sm sm:text-base md:text-lg tracking-wider text-white flex items-center gap-1.5">
               STEPWISE
               <span className="hidden md:inline-block text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 v1.0 OS
@@ -76,27 +76,27 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
         </div>
 
         {/* Level, XP & Streak Counter */}
-        <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Streak Badge */}
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-1 md:gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400"
+            className="flex items-center gap-1 md:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400"
           >
-            <Flame className="w-4 h-4 fill-orange-500 text-orange-500" />
+            <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-orange-500 text-orange-500" />
             <span className="text-xs font-bold whitespace-nowrap">
               {userStats.streak}<span className="hidden sm:inline"> Day Streak</span><span className="sm:hidden">d</span>
             </span>
           </motion.div>
 
-          {/* Level & XP */}
-          <div className="flex items-center gap-2 md:gap-3 bg-zinc-900/80 border border-white/10 px-2.5 md:px-3.5 py-1.5 rounded-xl">
+          {/* Level & XP (Hidden on mobile < sm to make room for Sign In button) */}
+          <div className="hidden sm:flex items-center gap-2 md:gap-3 bg-zinc-900/80 border border-white/10 px-2.5 md:px-3.5 py-1.5 rounded-xl">
             <div className="flex items-center gap-1 text-xs font-bold text-amber-400 whitespace-nowrap">
               <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
               <span>Lvl {userStats.level}</span>
             </div>
             
             {/* Progress Bar */}
-            <div className="hidden sm:block w-20 md:w-28 space-y-1">
+            <div className="hidden md:block w-24 space-y-1">
               <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
                 <span>{userStats.xp} XP</span>
                 <span>{xpForNextLevel}</span>
@@ -115,29 +115,29 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onOpenQuickAdd}
-            className="flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium text-xs shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 transition-all"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 md:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium text-xs shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 transition-all"
             title="Log Session"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden md:inline font-semibold">Log Session</span>
           </motion.button>
 
-          {/* User Auth Profile & Sign Out */}
+          {/* User Auth Profile & Prominent Sign In Button */}
           {userEmail ? (
             <button
               onClick={handleSignOut}
               title={`Signed in as ${userEmail}. Click to Sign Out`}
-              className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors shrink-0"
             >
               <LogOut className="w-4 h-4" />
             </button>
           ) : (
             <Link
               href="/login"
-              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 text-xs font-bold hover:bg-white/5 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-400 hover:bg-blue-600/30 text-xs font-extrabold transition-all shadow-sm shrink-0"
             >
               <User className="w-3.5 h-3.5 text-blue-400" />
-              <span className="hidden sm:inline">Sign In</span>
+              <span className="whitespace-nowrap">Sign In</span>
             </Link>
           )}
 
