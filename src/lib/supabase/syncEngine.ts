@@ -2,6 +2,7 @@ import { createClient } from './client';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 
 let syncDebounceTimer: NodeJS.Timeout | null = null;
+let realtimeChannel: any = null;
 
 export async function initializeCloudSync() {
   const supabase = createClient();
@@ -12,12 +13,19 @@ export async function initializeCloudSync() {
 
   if (session?.user) {
     await fetchAndHydrateUserData(session.user.id);
+    setupRealtimeSubscription(session.user.id);
   }
 
   // Subscribe to auth state changes
   supabase.auth.onAuthStateChange(async (event, currentSession) => {
     if (event === 'SIGNED_IN' && currentSession?.user) {
       await fetchAndHydrateUserData(currentSession.user.id);
+      setupRealtimeSubscription(currentSession.user.id);
+    } else if (event === 'SIGNED_OUT') {
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
     }
   });
 
@@ -28,6 +36,30 @@ export async function initializeCloudSync() {
       syncCurrentStateToCloud(state);
     }, 1500); // Debounce 1.5 seconds to avoid spamming network requests
   });
+}
+
+export function setupRealtimeSubscription(userId: string) {
+  const supabase = createClient();
+
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+  }
+
+  // Subscribe to PostgreSQL Realtime database changes across all 8 tables
+  realtimeChannel = supabase
+    .channel(`realtime:user_${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+      },
+      () => {
+        // Re-hydrate store when database updates on remote device
+        fetchAndHydrateUserData(userId);
+      }
+    )
+    .subscribe();
 }
 
 export async function fetchAndHydrateUserData(userId: string) {
