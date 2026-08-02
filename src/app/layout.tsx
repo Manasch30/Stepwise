@@ -32,6 +32,8 @@ export default function RootLayout({
         <meta name="theme-color" content="#09090b" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/favicon.svg" />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="bg-zinc-950 text-zinc-100 antialiased min-h-screen selection:bg-blue-500 selection:text-white">
