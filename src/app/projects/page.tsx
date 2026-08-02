@@ -15,7 +15,6 @@ import {
   Layers,
   Sparkles,
   Zap,
-  Terminal,
   Server,
   Layout,
   Brain,
@@ -403,7 +402,7 @@ export default function ProjectsPage() {
 
               {tech.notes && (
                 <p className="text-[10px] text-zinc-400 italic pt-1">
-                  "{tech.notes}"
+                  &quot;{tech.notes}&quot;
                 </p>
               )}
             </div>

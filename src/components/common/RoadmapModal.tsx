@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
-import { RoadmapItem } from '@/types';
 import { X, Calendar, Sparkles } from 'lucide-react';
 
 interface RoadmapModalProps {
@@ -121,7 +120,7 @@ export function RoadmapModal({
             </label>
             <select
               value={priority}
-              onChange={(e) => setPriority(e.target.value as any)}
+              onChange={(e) => setPriority(e.target.value as 'high' | 'medium' | 'low')}
               className="w-full px-4 py-2.5 rounded-xl bg-zinc-900/90 border border-white/10 text-sm text-white focus:outline-none focus:border-purple-500"
             >
               <option value="high">High Priority</option>

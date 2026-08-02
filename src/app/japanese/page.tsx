@@ -91,7 +91,7 @@ export default function JapanesePage() {
         {(['ALL', 'N5', 'N4', 'N3', 'N2', 'N1'] as const).map((lvl) => (
           <button
             key={lvl}
-            onClick={() => setSelectedLevel(lvl as any)}
+            onClick={() => setSelectedLevel(lvl)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               selectedLevel === lvl
                 ? 'bg-pink-600 text-white shadow-lg shadow-pink-600/20'

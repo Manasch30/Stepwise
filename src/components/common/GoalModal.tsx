@@ -144,7 +144,7 @@ export const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGo
                 <label className="block text-xs font-semibold text-zinc-300 mb-1">Status</label>
                 <select
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as any)}
+                  onChange={(e) => setStatus(e.target.value as 'active' | 'completed' | 'paused')}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900/90 border border-white/10 text-white text-xs outline-none"
                 >
                   <option value="active">Active</option>

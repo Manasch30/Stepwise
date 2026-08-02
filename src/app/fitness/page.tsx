@@ -245,7 +245,7 @@ export default function FitnessPage() {
 
               {pr.notes && (
                 <p className="text-[10px] text-amber-300/80 italic font-mono">
-                  "{pr.notes}"
+                  &quot;{pr.notes}&quot;
                 </p>
               )}
             </div>

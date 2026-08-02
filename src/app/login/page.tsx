@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Layers, Mail, Lock, Sparkles, ArrowRight, ShieldCheck, UserCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Layers, Mail, Lock, Sparkles, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -42,8 +42,8 @@ export default function LoginPage() {
         router.push('/');
         router.refresh();
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An error occurred during authentication.');
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message || 'An error occurred during authentication.');
     } finally {
       setLoading(false);
     }
@@ -67,8 +67,8 @@ export default function LoginPage() {
       });
       if (error) throw error;
       setSuccessMsg('Magic Login link sent to your email!');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to send Magic Link.');
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message || 'Failed to send Magic Link.');
     } finally {
       setLoading(false);
     }

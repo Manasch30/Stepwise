@@ -6,10 +6,7 @@ import { Goal } from '@/types';
 import { motion } from 'framer-motion';
 import {
   Cpu,
-  Brain,
   Languages,
-  Dumbbell,
-  Code,
   Flame,
   Clock,
   Activity,
@@ -29,9 +26,6 @@ export default function DashboardPage() {
     goals,
     subjects,
     lectureLogs,
-    dailyFitnessLogs,
-    japaneseResources,
-    projects,
     recentEvents,
     getOverallProgress,
     getTrackProgress,

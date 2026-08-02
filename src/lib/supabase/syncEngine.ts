@@ -2,7 +2,7 @@ import { createClient } from './client';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 
 let syncDebounceTimer: NodeJS.Timeout | null = null;
-let realtimeChannel: any = null;
+let realtimeChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
 
 export async function initializeCloudSync() {
   const supabase = createClient();
@@ -100,6 +100,7 @@ export async function fetchAndHydrateUserData(userId: string) {
         streak: profile?.streak ?? state.userStats.streak,
       },
       subjects: subjects && subjects.length > 0 ? subjects : state.subjects,
+      japaneseResources: japaneseResources && japaneseResources.length > 0 ? japaneseResources : state.japaneseResources,
       dailyFitnessLogs: dailyFitnessLogs && dailyFitnessLogs.length > 0 ? dailyFitnessLogs : state.dailyFitnessLogs,
       prRecords: prRecords && prRecords.length > 0 ? prRecords : state.prRecords,
       projects: projects && projects.length > 0 ? projects : state.projects,

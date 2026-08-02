@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import { RevisionCheckpoints } from '@/types';
-import { motion } from 'framer-motion';
 import {
   Table2,
   Search,
@@ -14,7 +13,6 @@ import {
   BookOpen,
   Brain,
   Calculator,
-  CheckCircle2,
   Trash2,
 } from 'lucide-react';
 
@@ -310,7 +308,7 @@ export default function RevisionMatrixPage() {
           Object.entries(subjectsMap).map(([subjectName, chapters]) => {
             // Subject progress
             let subCleared = 0;
-            let subTotal = chapters.length * currentColumns.length;
+            const subTotal = chapters.length * currentColumns.length;
 
             chapters.forEach((ch) => {
               currentColumns.forEach((col) => {

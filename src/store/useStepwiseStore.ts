@@ -282,7 +282,7 @@ export const useStepwiseStore = create<StepwiseState>()(
               ...sub,
               hours_completed: newCompleted,
               checkpoint,
-              status: status as any,
+              status: status as 'not_started' | 'in_progress' | 'completed',
             };
           }
           return sub;
@@ -803,7 +803,7 @@ export const useStepwiseStore = create<StepwiseState>()(
             return {
               ...merged,
               checkpoint,
-              status: status as any,
+              status: status as 'not_started' | 'in_progress' | 'completed',
             };
           }
           return sub;

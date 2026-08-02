@@ -12,7 +12,6 @@ import {
   CheckSquare,
   Square,
   Trash2,
-  Sparkles,
   Layers,
 } from 'lucide-react';
 

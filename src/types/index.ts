@@ -158,7 +158,7 @@ export type EventType =
 export interface AppEvent {
   id: string;
   type: EventType;
-  payload: any;
+  payload: unknown;
   timestamp: string;
   xpEarned: number;
   description: string;

@@ -11,7 +11,6 @@ import {
   Code,
   Menu,
   User,
-  LogOut,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -23,9 +22,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenDrawer }
   const pathname = usePathname();
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   useEffect(() => {
+    const supabase = createClient();
+
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) {
         setUserEmail(data.user.email);

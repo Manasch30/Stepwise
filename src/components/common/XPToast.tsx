@@ -19,7 +19,7 @@ export const XPToast: React.FC = () => {
           origin: { y: 0.8, x: 0.85 },
           colors: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'],
         });
-      } catch (e) {
+      } catch {
         // ignore if window issue
       }
 

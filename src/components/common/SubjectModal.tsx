@@ -50,7 +50,7 @@ export const SubjectModal: React.FC<SubjectModalProps> = ({
       updateSubject(editingSubject.id, {
         title: title.trim(),
         track,
-        goal_id: goalId as any,
+        goal_id: goalId,
         hours_target: parseFloat(hoursTarget) || 30,
         hours_completed: parseFloat(hoursCompleted) || 0,
       });
@@ -58,7 +58,7 @@ export const SubjectModal: React.FC<SubjectModalProps> = ({
       addSubject({
         title: title.trim(),
         track,
-        goal_id: goalId as any,
+        goal_id: goalId,
         hours_target: parseFloat(hoursTarget) || 30,
       });
     }
@@ -101,7 +101,7 @@ export const SubjectModal: React.FC<SubjectModalProps> = ({
               <label className="block text-xs font-semibold text-zinc-300 mb-1">Track</label>
               <select
                 value={track}
-                onChange={(e) => setTrack(e.target.value as any)}
+                onChange={(e) => setTrack(e.target.value as 'GATE CS' | 'GATE DA' | 'Japanese' | 'Fitness')}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900/90 border border-white/10 text-white text-xs outline-none"
               >
                 <option value="GATE CS">GATE CS (Computer Science)</option>

@@ -16,9 +16,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
   const { userStats, resetToDefaults } = useStepwiseStore();
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   useEffect(() => {
+    const supabase = createClient();
+
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) {
         setUserEmail(data.user.email);
@@ -35,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
   }, []);
 
   const handleSignOut = async () => {
+    const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = '/login';
   };

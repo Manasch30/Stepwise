@@ -357,7 +357,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
 
           {activeTab === 'review' && (
             <form onSubmit={handleSubmitReview} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">Week</label>
                   <input
@@ -368,7 +368,17 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Weekly Rating (1-5)</label>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Study Hours</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={reviewHours}
+                    onChange={(e) => setReviewHours(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900/90 border border-white/10 text-white text-xs outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Rating (1-5)</label>
                   <input
                     type="number"
                     min="1"
