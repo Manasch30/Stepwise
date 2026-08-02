@@ -34,6 +34,9 @@ export async function deleteCloudRecord(tableName: string, id: string) {
       .eq('user_id', session.user.id);
     if (error) {
       console.error(`[Supabase Delete] Error deleting from ${tableName}:`, error.message);
+    } else {
+      // Sync updated state (including adjusted XP) to cloud
+      syncCurrentStateToCloud(useStepwiseStore.getState());
     }
   } catch (err) {
     console.error(`[Supabase Delete] Exception deleting from ${tableName}:`, err);

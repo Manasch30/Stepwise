@@ -42,6 +42,7 @@ interface StepwiseState {
 
   // Logging Actions (Event Triggers)
   logLecture: (data: { subject_id: string; topic_id?: string; hours: number; remarks: string; date?: string }) => void;
+  deleteLectureLog: (id: string) => void;
   logDailyFitness: (data: { steps: number; calories: number; protein: number; date?: string }) => void;
   addPRRecord: (data: { exercise: string; weight_kg: number; reps?: number; date?: string; notes?: string }) => void;
   deletePRRecord: (id: string) => void;
@@ -350,6 +351,61 @@ export const useStepwiseStore = create<StepwiseState>()(
         eventBus.publish(appEvent);
       },
 
+      deleteLectureLog: (id) => {
+        const state = get();
+        deleteCloudRecord('lecture_logs', id);
+        const targetLog = state.lectureLogs.find((l) => l.id === id);
+
+        if (!targetLog) {
+          set({ lectureLogs: state.lectureLogs.filter((l) => l.id !== id) });
+          return;
+        }
+
+        // 1. Recalculate Subject hours
+        const updatedSubjects = state.subjects.map((sub) => {
+          if (sub.id === targetLog.subject_id) {
+            const newCompleted = Math.max(0, sub.hours_completed - targetLog.hours);
+            const ratio = sub.hours_target > 0 ? (newCompleted / sub.hours_target) * 100 : 0;
+            let checkpoint = 0;
+            if (ratio >= 100) checkpoint = 100;
+            else if (ratio >= 80) checkpoint = 80;
+            else if (ratio >= 60) checkpoint = 60;
+            else if (ratio >= 40) checkpoint = 40;
+            else if (ratio >= 20) checkpoint = 20;
+
+            const status = ratio >= 100 ? 'completed' : newCompleted > 0 ? 'in_progress' : 'not_started';
+            return {
+              ...sub,
+              hours_completed: newCompleted,
+              checkpoint,
+              status: status as 'not_started' | 'in_progress' | 'completed',
+            };
+          }
+          return sub;
+        });
+
+        // 2. Deduct XP
+        const xpDeducted = Math.round(targetLog.hours * 10);
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
+        set({
+          lectureLogs: state.lectureLogs.filter((l) => l.id !== id),
+          subjects: updatedSubjects,
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
+          activeToast: {
+            id: 'toast_' + Date.now(),
+            title: `🗑️ Session Removed (-${xpDeducted} XP)`,
+            message: `Deducted ${targetLog.hours} hrs from subject`,
+            xp: -xpDeducted,
+          },
+        });
+      },
+
       // ==========================================
       // DAILY FITNESS LOGGING (STEPS, CALORIES, PROTEIN)
       // ==========================================
@@ -434,13 +490,23 @@ export const useStepwiseStore = create<StepwiseState>()(
 
       deletePRRecord: (id) => {
         const state = get();
+        deleteCloudRecord('pr_records', id);
+        const xpDeducted = 50;
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
         set({
           prRecords: state.prRecords.filter((pr) => pr.id !== id),
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
           activeToast: {
             id: 'toast_' + Date.now(),
-            title: `🗑️ PR Record Deleted`,
+            title: `🗑️ PR Record Deleted (-50 XP)`,
             message: `Removed personal record`,
-            xp: 0,
+            xp: -xpDeducted,
           },
         });
       },
@@ -570,13 +636,22 @@ export const useStepwiseStore = create<StepwiseState>()(
       deleteProject: (id) => {
         const state = get();
         deleteCloudRecord('projects', id);
+        const xpDeducted = 30;
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
         set({
           projects: state.projects.filter((p) => p.id !== id),
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
           activeToast: {
             id: 'toast_' + Date.now(),
-            title: `🗑️ Project Removed`,
+            title: `🗑️ Project Removed (-30 XP)`,
             message: `Deleted project from showcase`,
-            xp: 0,
+            xp: -xpDeducted,
           },
         });
       },
@@ -758,14 +833,24 @@ export const useStepwiseStore = create<StepwiseState>()(
       deleteJapaneseResource: (id) => {
         const state = get();
         deleteCloudRecord('japanese_resources', id);
+        const targetRes = state.japaneseResources.find((r) => r.id === id);
+        const xpDeducted = targetRes ? (targetRes.finished ? 40 : targetRes.completed * 15) : 0;
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
         const updated = state.japaneseResources.filter((r) => r.id !== id);
         set({
           japaneseResources: updated,
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
           activeToast: {
             id: 'toast_' + Date.now(),
-            title: `🗑️ Resource Removed`,
+            title: `🗑️ Resource Removed (-${xpDeducted} XP)`,
             message: `Resource deleted`,
-            xp: 0,
+            xp: -xpDeducted,
           },
         });
       },
@@ -838,14 +923,27 @@ export const useStepwiseStore = create<StepwiseState>()(
       deleteSubject: (id) => {
         const state = get();
         deleteCloudRecord('subjects', id);
+        const targetSub = state.subjects.find((s) => s.id === id);
+        const xpDeducted = targetSub ? Math.round(targetSub.hours_completed * 10) : 0;
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
         const updatedSubjects = state.subjects.filter((s) => s.id !== id);
+        const updatedLogs = state.lectureLogs.filter((l) => l.subject_id !== id);
+
         set({
           subjects: updatedSubjects,
+          lectureLogs: updatedLogs,
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
           activeToast: {
             id: 'toast_' + Date.now(),
-            title: `🗑️ Subject Deleted`,
-            message: `Removed subject from track`,
-            xp: 0,
+            title: `🗑️ Subject Deleted (-${xpDeducted} XP)`,
+            message: `Removed subject and associated logs`,
+            xp: -xpDeducted,
           },
         });
       },
@@ -905,14 +1003,24 @@ export const useStepwiseStore = create<StepwiseState>()(
       deleteRoadmapGoal: (id) => {
         const state = get();
         deleteCloudRecord('roadmap', id);
+        const targetGoal = state.roadmap.find((item) => item.id === id);
+        const xpDeducted = targetGoal?.completed ? 20 : 0;
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
         const updatedRoadmap = state.roadmap.filter((item) => item.id !== id);
         set({
           roadmap: updatedRoadmap,
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
           activeToast: {
             id: 'toast_' + Date.now(),
-            title: `🗑️ Goal Removed`,
+            title: `🗑️ Goal Removed (-${xpDeducted} XP)`,
             message: `Deleted weekly goal`,
-            xp: 0,
+            xp: -xpDeducted,
           },
         });
       },
@@ -983,14 +1091,28 @@ export const useStepwiseStore = create<StepwiseState>()(
       deleteRevisionChapter: (id) => {
         const state = get();
         deleteCloudRecord('revision_matrix', id);
+        const targetChapter = state.revisionMatrix.find((c) => c.id === id);
+        let clearedCount = 0;
+        if (targetChapter?.checkpoints) {
+          clearedCount = Object.values(targetChapter.checkpoints).filter(Boolean).length;
+        }
+        const xpDeducted = clearedCount * 5;
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
         const updatedMatrix = state.revisionMatrix.filter((item) => item.id !== id);
         set({
           revisionMatrix: updatedMatrix,
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
           activeToast: {
             id: 'toast_' + Date.now(),
-            title: `🗑️ Chapter Removed`,
+            title: `🗑️ Chapter Removed (-${xpDeducted} XP)`,
             message: `Deleted chapter from Revision Matrix`,
-            xp: 0,
+            xp: -xpDeducted,
           },
         });
       },

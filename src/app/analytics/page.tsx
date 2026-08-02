@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Clock,
   Zap,
+  Trash2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -19,7 +20,7 @@ import {
 } from 'recharts';
 
 export default function AnalyticsPage() {
-  const { lectureLogs, subjects, recentEvents } = useStepwiseStore();
+  const { lectureLogs, subjects, recentEvents, deleteLectureLog } = useStepwiseStore();
 
   // Helper to format Date string as YYYY-MM-DD
   const formatDateStr = (date: Date) => date.toISOString().split('T')[0];
@@ -231,6 +232,61 @@ export default function AnalyticsPage() {
             <div className="text-xl font-bold text-white">{remainingGateHours} Hours</div>
           </div>
         </div>
+      </div>
+
+      {/* Logged Study Sessions History & Deletion */}
+      <div className="p-6 rounded-3xl glass-panel border border-white/10 space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+            <Clock className="w-4 h-4 text-emerald-400" />
+            Logged Study Session History
+          </h3>
+          <span className="text-xs text-zinc-400 font-mono">
+            {lectureLogs.length} total logged sessions
+          </span>
+        </div>
+
+        {lectureLogs.length === 0 ? (
+          <div className="p-8 text-center text-zinc-500 text-xs font-mono">
+            No study sessions logged yet. Log hours from GATE CS/DA to see history.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {lectureLogs.slice(0, 12).map((log) => {
+              const sub = subjects.find((s) => s.id === log.subject_id);
+              const subTitle = sub ? sub.title : log.subject_id;
+              return (
+                <div
+                  key={log.id}
+                  className="p-3.5 rounded-2xl bg-zinc-900/80 border border-white/5 flex items-center justify-between hover:border-white/20 transition-all group"
+                >
+                  <div className="space-y-1">
+                    <div className="text-xs font-extrabold text-white truncate max-w-[200px]">
+                      {subTitle}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
+                      <span className="text-emerald-400 font-bold">+{log.hours} hrs</span>
+                      <span>•</span>
+                      <span>{log.date}</span>
+                    </div>
+                    {log.remarks && (
+                      <div className="text-[11px] text-zinc-400 italic truncate max-w-[200px]">
+                        &quot;{log.remarks}&quot;
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteLectureLog(log.id)}
+                    title="Delete session & deduct XP"
+                    className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all opacity-80 group-hover:opacity-100"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
