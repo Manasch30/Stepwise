@@ -17,6 +17,29 @@ let syncDebounceTimer: NodeJS.Timeout | null = null;
 let realtimeChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
 let lastLocalWriteTimestamp = 0;
 
+export async function deleteCloudRecord(tableName: string, id: string) {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.user) return;
+  lastLocalWriteTimestamp = Date.now();
+
+  try {
+    const { error } = await supabase
+      .from(tableName)
+      .delete()
+      .eq('id', id)
+      .eq('user_id', session.user.id);
+    if (error) {
+      console.error(`[Supabase Delete] Error deleting from ${tableName}:`, error.message);
+    }
+  } catch (err) {
+    console.error(`[Supabase Delete] Exception deleting from ${tableName}:`, err);
+  }
+}
+
 export async function manualCloudSync(): Promise<{ success: boolean; message: string }> {
   const supabase = createClient();
   const {

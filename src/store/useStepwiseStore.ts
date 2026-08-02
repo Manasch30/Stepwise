@@ -20,6 +20,7 @@ import {
 } from '@/types';
 import { initialRevisionMatrix } from '@/data/initialRevisionMatrix';
 import { eventBus } from '@/lib/eventBus';
+import { deleteCloudRecord } from '@/lib/supabase/syncEngine';
 
 interface StepwiseState {
   userStats: UserStats;
@@ -568,6 +569,7 @@ export const useStepwiseStore = create<StepwiseState>()(
 
       deleteProject: (id) => {
         const state = get();
+        deleteCloudRecord('projects', id);
         set({
           projects: state.projects.filter((p) => p.id !== id),
           activeToast: {
@@ -603,6 +605,7 @@ export const useStepwiseStore = create<StepwiseState>()(
 
       deleteTechStackItem: (id) => {
         const state = get();
+        deleteCloudRecord('tech_stack', id);
         set({
           techStack: state.techStack.filter((t) => t.id !== id),
           activeToast: {
@@ -754,6 +757,7 @@ export const useStepwiseStore = create<StepwiseState>()(
 
       deleteJapaneseResource: (id) => {
         const state = get();
+        deleteCloudRecord('japanese_resources', id);
         const updated = state.japaneseResources.filter((r) => r.id !== id);
         set({
           japaneseResources: updated,
@@ -833,6 +837,7 @@ export const useStepwiseStore = create<StepwiseState>()(
 
       deleteSubject: (id) => {
         const state = get();
+        deleteCloudRecord('subjects', id);
         const updatedSubjects = state.subjects.filter((s) => s.id !== id);
         set({
           subjects: updatedSubjects,
@@ -899,6 +904,7 @@ export const useStepwiseStore = create<StepwiseState>()(
 
       deleteRoadmapGoal: (id) => {
         const state = get();
+        deleteCloudRecord('roadmap', id);
         const updatedRoadmap = state.roadmap.filter((item) => item.id !== id);
         set({
           roadmap: updatedRoadmap,
@@ -976,6 +982,7 @@ export const useStepwiseStore = create<StepwiseState>()(
 
       deleteRevisionChapter: (id) => {
         const state = get();
+        deleteCloudRecord('revision_matrix', id);
         const updatedMatrix = state.revisionMatrix.filter((item) => item.id !== id);
         set({
           revisionMatrix: updatedMatrix,
