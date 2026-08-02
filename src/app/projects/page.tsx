@@ -340,6 +340,26 @@ export default function ProjectsPage() {
               </div>
             </div>
           ))}
+          {filteredProjects.length === 0 && (
+            <div className="col-span-full p-12 rounded-3xl glass-card border border-white/10 text-center space-y-4">
+              <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-400 w-fit mx-auto border border-amber-500/20">
+                <Code className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-base font-bold text-white">No Projects Added Yet</h4>
+                <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                  Your project lab grid is empty. Add your own projects to showcase builds and track progress (+30 XP).
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddProjectOpen(true)}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold shadow-lg shadow-amber-500/20 transition-all inline-flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Add Your First Project</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

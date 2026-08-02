@@ -154,41 +154,7 @@ const initialAchievements: Achievement[] = [
   { id: 'ach_bench_pr', title: '90kg Bench Press', description: 'Hit a 90kg bench press PR in fitness log', xp: 200, icon: 'Trophy', unlocked: false },
 ];
 
-const initialProjects: ProjectItem[] = [
-  {
-    id: 'p1',
-    title: 'FlashPDF Reader & RichMedia Engine',
-    description: 'High-performance desktop PDF reader with RichMedia audio parser, annotations, and multi-tab interface.',
-    progress: 75,
-    github: 'https://github.com/manas/flashpdf',
-    tech_stack: ['Next.js 15', 'TypeScript', 'PDF.js', 'WebAudio API', 'TailwindCSS'],
-    category: 'Desktop Tool',
-    status: 'in_progress',
-    updated_at: '2026-08-01',
-  },
-  {
-    id: 'p2',
-    title: 'Stepwise Progression OS',
-    description: 'Cross-platform study tracker, revision matrix & daily operating system for GATE, Japanese & Fitness.',
-    progress: 90,
-    github: 'https://github.com/manas/stepwise',
-    tech_stack: ['Next.js 15', 'React 19', 'Zustand', 'Framer Motion', 'Recharts'],
-    category: 'Web App',
-    status: 'in_progress',
-    updated_at: '2026-08-02',
-  },
-  {
-    id: 'p3',
-    title: 'GATE CS & DA Revision Engine',
-    description: 'Interactive checklist matrix & PYQ tracker with automated XP progression and topic tests.',
-    progress: 100,
-    github: 'https://github.com/manas/gate-revision-matrix',
-    tech_stack: ['TypeScript', 'Zustand', 'TailwindCSS'],
-    category: 'Web App',
-    status: 'completed',
-    updated_at: '2026-08-02',
-  },
-];
+const initialProjects: ProjectItem[] = [];
 
 const initialTechStack: TechStackItem[] = [
   { id: 'ts_1', category: 'Frontend & UI', name: 'Next.js 15 / React 19 / TypeScript', proficiency: 'Mastered', notes: 'Core stack for modern Web Apps' },

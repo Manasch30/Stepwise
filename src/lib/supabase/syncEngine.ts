@@ -334,19 +334,19 @@ export async function fetchAndHydrateUserData(userId: string) {
         xp: profile?.xp ?? state.userStats.xp,
         streak: profile?.streak ?? state.userStats.streak,
       },
-      subjects: transformedSubjects.length > 0 ? transformedSubjects : state.subjects,
-      japaneseResources: transformedJp.length > 0 ? transformedJp : state.japaneseResources,
-      dailyFitnessLogs: transformedFitness.length > 0 ? transformedFitness : state.dailyFitnessLogs,
-      prRecords: transformedPRs.length > 0 ? transformedPRs : state.prRecords,
-      projects: transformedProjects.length > 0 ? transformedProjects : state.projects,
-      techStack: transformedTech.length > 0 ? transformedTech : state.techStack,
-      revisionMatrix: transformedRevision.length > 0 ? transformedRevision : state.revisionMatrix,
-      lectureLogs: transformedLectureLogs.length > 0 ? transformedLectureLogs : state.lectureLogs,
-      roadmap: transformedRoadmap.length > 0 ? transformedRoadmap : state.roadmap,
+      subjects: subjects !== null && (transformedSubjects.length > 0 || !isNewUserDb) ? transformedSubjects : state.subjects,
+      japaneseResources: japaneseResources !== null ? transformedJp : state.japaneseResources,
+      dailyFitnessLogs: dailyFitnessLogs !== null ? transformedFitness : state.dailyFitnessLogs,
+      prRecords: prRecords !== null ? transformedPRs : state.prRecords,
+      projects: projects !== null ? transformedProjects : state.projects,
+      techStack: techStack !== null && (transformedTech.length > 0 || !isNewUserDb) ? transformedTech : state.techStack,
+      revisionMatrix: revisionMatrix !== null && (transformedRevision.length > 0 || !isNewUserDb) ? transformedRevision : state.revisionMatrix,
+      lectureLogs: lectureLogs !== null ? transformedLectureLogs : state.lectureLogs,
+      roadmap: roadmap !== null ? transformedRoadmap : state.roadmap,
       recentEvents:
         reconstructedEvents.length > 0
           ? reconstructedEvents.slice(0, 50)
-          : state.recentEvents,
+          : (lectureLogs !== null && lectureLogs.length === 0 ? [] : state.recentEvents),
     }));
 
     // If new user with empty tables in Supabase, seed current state into Supabase immediately!
