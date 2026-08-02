@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { MobileNavDrawer } from '@/components/layout/MobileNavDrawer';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { XPToast } from '@/components/common/XPToast';
 import { QuickAddModal } from '@/components/common/QuickAddModal';
 import { Plus } from 'lucide-react';
@@ -14,6 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   return (
     <html lang="en" className="dark">
@@ -27,13 +30,16 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="bg-zinc-950 text-zinc-100 antialiased min-h-screen selection:bg-blue-500 selection:text-white">
-        <div className="flex flex-col min-h-screen">
+        <div className="flex flex-col min-h-screen pb-16 lg:pb-0">
           {/* Header Navbar */}
-          <Navbar onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
+          <Navbar
+            onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+            onOpenMobileDrawer={() => setIsMobileDrawerOpen(true)}
+          />
 
           {/* Main App Body */}
           <div className="flex flex-1 max-w-7xl w-full mx-auto">
-            {/* Sidebar Navigation */}
+            {/* Sidebar Navigation (Desktop) */}
             <Sidebar />
 
             {/* View Content Area */}
@@ -43,10 +49,22 @@ export default function RootLayout({
           </div>
         </div>
 
-        {/* Global Floating Action Button (+) */}
+        {/* Mobile Slide-Out Navigation Drawer */}
+        <MobileNavDrawer
+          isOpen={isMobileDrawerOpen}
+          onClose={() => setIsMobileDrawerOpen(false)}
+        />
+
+        {/* Mobile Quick Bottom Navigation Bar */}
+        <MobileBottomNav
+          onOpenDrawer={() => setIsMobileDrawerOpen(true)}
+        />
+
+        {/* Global Floating Action Button (+) for Mobile */}
         <button
           onClick={() => setIsQuickAddOpen(true)}
-          className="fixed bottom-6 left-6 z-40 lg:hidden w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/40 hover:scale-105 active:scale-95 transition-all"
+          className="fixed bottom-20 right-5 z-40 lg:hidden w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xl shadow-blue-600/40 hover:scale-105 active:scale-95 transition-all"
+          title="Quick Log Session"
         >
           <Plus className="w-6 h-6" />
         </button>

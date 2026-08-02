@@ -2,14 +2,15 @@
 
 import React from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
-import { Flame, Zap, Plus, RefreshCw, Layers } from 'lucide-react';
+import { Flame, Zap, Plus, RefreshCw, Layers, Menu } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface NavbarProps {
   onOpenQuickAdd: () => void;
+  onOpenMobileDrawer?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDrawer }) => {
   const { userStats, resetToDefaults } = useStepwiseStore();
 
   const xpForCurrentLevel = (userStats.level - 1) * 300;
@@ -24,6 +25,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd }) => {
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         {/* Brand */}
         <div className="flex items-center gap-3">
+          {onOpenMobileDrawer && (
+            <button
+              onClick={onOpenMobileDrawer}
+              className="lg:hidden p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white"
+              title="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
+
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
             <Layers className="w-5 h-5 text-white" />
           </div>
