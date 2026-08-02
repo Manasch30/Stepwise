@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -9,6 +9,7 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { XPToast } from '@/components/common/XPToast';
 import { QuickAddModal } from '@/components/common/QuickAddModal';
 import { Plus } from 'lucide-react';
+import { initializeCloudSync } from '@/lib/supabase/syncEngine';
 
 export default function RootLayout({
   children,
@@ -17,6 +18,10 @@ export default function RootLayout({
 }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    initializeCloudSync();
+  }, []);
 
   return (
     <html lang="en" className="dark">

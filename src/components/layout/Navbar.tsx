@@ -134,10 +134,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
           ) : (
             <Link
               href="/login"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 text-xs font-bold hover:bg-white/5 transition-all"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 text-xs font-bold hover:bg-white/5 transition-all"
             >
               <User className="w-3.5 h-3.5 text-blue-400" />
-              <span>Sign In</span>
+              <span className="hidden sm:inline">Sign In</span>
             </Link>
           )}
 
