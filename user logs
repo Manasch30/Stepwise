@@ -1,0 +1,41 @@
+User logs:
+
+2.5 hrs DBMS
+
+↓
+
+Creates LectureLog
+
+↓
+
+Event Bus
+
+↓
+
+Updates DBMS Hours
+
+↓
+
+Updates GATE %
+
+↓
+
+Updates Overall %
+
+↓
+
+Checks Achievements
+
+↓
+
+Updates Weekly Stats
+
+↓
+
+Updates Heatmap
+
+↓
+
+Shows Toast
+
+"🎉 +25 XP"

@@ -1,0 +1,16 @@
+{
+  "name": "Stepwise OS - Progression & Tracker System",
+  "short_name": "Stepwise OS",
+  "description": "Personal progression tracking system for GATE CS & DA, Japanese Immersion, Fitness & Projects.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
