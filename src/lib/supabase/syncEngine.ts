@@ -9,6 +9,7 @@ import {
   TechStackItem,
   DailyFitnessLog,
   LectureLog,
+  RoadmapItem,
   AppEvent,
 } from '@/types';
 
@@ -119,6 +120,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       { data: projects, error: projErr },
       { data: techStack, error: techErr },
       { data: lectureLogs, error: lecErr },
+      { data: roadmap, error: rmErr },
     ] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).single(),
       supabase.from('subjects').select('*').eq('user_id', userId),
@@ -129,6 +131,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       supabase.from('projects').select('*').eq('user_id', userId),
       supabase.from('tech_stack').select('*').eq('user_id', userId),
       supabase.from('lecture_logs').select('*').eq('user_id', userId),
+      supabase.from('roadmap').select('*').eq('user_id', userId),
     ]);
 
     if (profileErr) console.warn('[Supabase Sync] Profile fetch notice:', profileErr.message);
@@ -140,6 +143,7 @@ export async function fetchAndHydrateUserData(userId: string) {
     if (projErr) console.warn('[Supabase Sync] Projects fetch notice:', projErr.message);
     if (techErr) console.warn('[Supabase Sync] Tech stack fetch notice:', techErr.message);
     if (lecErr) console.warn('[Supabase Sync] Lecture logs fetch notice:', lecErr.message);
+    if (rmErr) console.warn('[Supabase Sync] Roadmap fetch notice:', rmErr.message);
 
     const isNewUserDb =
       (!projects || projects.length === 0) &&
@@ -256,7 +260,17 @@ export async function fetchAndHydrateUserData(userId: string) {
       created_at: l.created_at || new Date().toISOString(),
     }));
 
-    // 9. Reconstruct Event Stream feed from fetched records so Event Bus stream is never empty
+    // 9. Transform Roadmap Goals
+    const transformedRoadmap: RoadmapItem[] = (roadmap || []).map((r) => ({
+      id: r.id,
+      month: r.month || 'August 2026',
+      week_number: Number(r.week_number || 1),
+      goal: r.goal || '',
+      priority: (r.priority || 'medium') as 'low' | 'medium' | 'high',
+      completed: !!r.completed,
+    }));
+
+    // 10. Reconstruct Event Stream feed from fetched records so Event Bus stream is never empty
     const reconstructedEvents: AppEvent[] = [];
     transformedLectureLogs.forEach((l) => {
       const sub = transformedSubjects.find((s) => s.id === l.subject_id);
@@ -302,6 +316,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       techStack: transformedTech.length > 0 ? transformedTech : state.techStack,
       revisionMatrix: transformedRevision.length > 0 ? transformedRevision : state.revisionMatrix,
       lectureLogs: transformedLectureLogs.length > 0 ? transformedLectureLogs : state.lectureLogs,
+      roadmap: transformedRoadmap.length > 0 ? transformedRoadmap : state.roadmap,
       recentEvents:
         reconstructedEvents.length > 0
           ? reconstructedEvents.slice(0, 50)
@@ -490,6 +505,24 @@ export async function syncCurrentStateToCloud(
       if (lecErr) {
         console.error('[Supabase Push] Lecture logs error:', lecErr.message);
         syncErrors.push(`lecture_logs: ${lecErr.message}`);
+      }
+    }
+
+    // 10. Sync Roadmap Goals
+    if (state.roadmap?.length) {
+      const roadmapPayloads = state.roadmap.map((r) => ({
+        id: r.id,
+        user_id: userId,
+        month: r.month,
+        week_number: r.week_number,
+        goal: r.goal,
+        priority: r.priority,
+        completed: r.completed,
+      }));
+      const { error: rmErr } = await supabase.from('roadmap').upsert(roadmapPayloads);
+      if (rmErr) {
+        console.error('[Supabase Push] Roadmap error:', rmErr.message);
+        syncErrors.push(`roadmap: ${rmErr.message}`);
       }
     }
   } catch (err: unknown) {

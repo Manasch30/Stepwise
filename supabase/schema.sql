@@ -214,3 +214,24 @@ CREATE POLICY "Users manage own lecture logs"
   ON public.lecture_logs FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+
+-- 10. ROADMAP GOALS TABLE (Monthly / Weekly Goals)
+CREATE TABLE IF NOT EXISTS public.roadmap (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  month TEXT NOT NULL,
+  week_number INT NOT NULL DEFAULT 1,
+  goal TEXT NOT NULL,
+  priority TEXT CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
+  completed BOOLEAN DEFAULT FALSE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.roadmap ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own roadmap"
+  ON public.roadmap FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
