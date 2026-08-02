@@ -37,7 +37,8 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, display_name)
-  VALUES (new.id, new.email, COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)));
+  VALUES (new.id, new.email, COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)))
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -53,7 +54,7 @@ CREATE TABLE IF NOT EXISTS public.subjects (
   id TEXT PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
-  track TEXT CHECK (track IN ('GATE_CS', 'GATE_DA')),
+  track TEXT,
   hours_target INT NOT NULL DEFAULT 40,
   hours_completed NUMERIC DEFAULT 0,
   pyq_target INT DEFAULT 100,
@@ -102,7 +103,7 @@ CREATE TABLE IF NOT EXISTS public.japanese_resources (
   episodes_or_chapters INT NOT NULL DEFAULT 1,
   completed INT NOT NULL DEFAULT 0,
   hours_spent NUMERIC NOT NULL DEFAULT 0,
-  level TEXT CHECK (level IN ('N5', 'N4', 'N3', 'N2', 'N1')),
+  level TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -191,5 +192,25 @@ ALTER TABLE public.tech_stack ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users manage own tech stack"
   ON public.tech_stack FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+
+-- 9. LECTURE LOGS TABLE (Study Sessions)
+CREATE TABLE IF NOT EXISTS public.lecture_logs (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  subject_id TEXT NOT NULL,
+  topic_id TEXT,
+  hours NUMERIC NOT NULL DEFAULT 0,
+  remarks TEXT,
+  date DATE DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.lecture_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own lecture logs"
+  ON public.lecture_logs FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);

@@ -27,8 +27,16 @@ export async function manualCloudSync(): Promise<{ success: boolean; message: st
   }
 
   try {
-    await syncCurrentStateToCloud(useStepwiseStore.getState());
+    const errors = await syncCurrentStateToCloud(useStepwiseStore.getState());
     await fetchAndHydrateUserData(session.user.id);
+
+    if (errors.length > 0) {
+      return {
+        success: false,
+        message: `Sync partially failed due to Supabase DB schema:\n\n${errors.join('\n')}\n\nPlease run the SQL schema in supabase/schema.sql in your Supabase SQL Editor!`,
+      };
+    }
+
     return { success: true, message: 'Cloud Sync Successful! All tables synchronized.' };
   } catch (err: unknown) {
     return { success: false, message: (err as Error).message || 'Failed to sync with cloud.' };
@@ -309,16 +317,19 @@ export async function fetchAndHydrateUserData(userId: string) {
   }
 }
 
-export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwiseStore.getState>) {
+export async function syncCurrentStateToCloud(
+  state: ReturnType<typeof useStepwiseStore.getState>
+): Promise<string[]> {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return; // Only sync if logged in
+  if (!user) return []; // Only sync if logged in
 
   const userId = user.id;
   lastLocalWriteTimestamp = Date.now();
+  const syncErrors: string[] = [];
 
   try {
     // 1. Sync User Stats Profile
@@ -330,7 +341,10 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
       streak: state.userStats.streak,
       updated_at: new Date().toISOString(),
     });
-    if (profileErr) console.error('[Supabase Push] Profile error:', profileErr.message);
+    if (profileErr) {
+      console.error('[Supabase Push] Profile error:', profileErr.message);
+      syncErrors.push(`profiles: ${profileErr.message}`);
+    }
 
     // 2. Sync Projects
     if (state.projects?.length) {
@@ -347,7 +361,10 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         updated_at: new Date().toISOString(),
       }));
       const { error: projErr } = await supabase.from('projects').upsert(projectPayloads);
-      if (projErr) console.error('[Supabase Push] Projects error:', projErr.message);
+      if (projErr) {
+        console.error('[Supabase Push] Projects error:', projErr.message);
+        syncErrors.push(`projects: ${projErr.message}`);
+      }
     }
 
     // 3. Sync Tech Stack
@@ -361,7 +378,10 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         notes: t.notes,
       }));
       const { error: techErr } = await supabase.from('tech_stack').upsert(techPayloads);
-      if (techErr) console.error('[Supabase Push] Tech stack error:', techErr.message);
+      if (techErr) {
+        console.error('[Supabase Push] Tech stack error:', techErr.message);
+        syncErrors.push(`tech_stack: ${techErr.message}`);
+      }
     }
 
     // 4. Sync Subjects
@@ -375,7 +395,10 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         hours_completed: s.hours_completed,
       }));
       const { error: subErr } = await supabase.from('subjects').upsert(subjectPayloads);
-      if (subErr) console.error('[Supabase Push] Subjects error:', subErr.message);
+      if (subErr) {
+        console.error('[Supabase Push] Subjects error:', subErr.message);
+        syncErrors.push(`subjects: ${subErr.message}`);
+      }
     }
 
     // 5. Sync Revision Matrix
@@ -393,7 +416,10 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         notes_done: !!r.checkpoints?.short_notes,
       }));
       const { error: revErr } = await supabase.from('revision_matrix').upsert(revisionPayloads);
-      if (revErr) console.error('[Supabase Push] Revision matrix error:', revErr.message);
+      if (revErr) {
+        console.error('[Supabase Push] Revision matrix error:', revErr.message);
+        syncErrors.push(`revision_matrix: ${revErr.message}`);
+      }
     }
 
     // 6. Sync Japanese Resources
@@ -409,7 +435,10 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         level: j.level,
       }));
       const { error: jpErr } = await supabase.from('japanese_resources').upsert(jpPayloads);
-      if (jpErr) console.error('[Supabase Push] Japanese error:', jpErr.message);
+      if (jpErr) {
+        console.error('[Supabase Push] Japanese error:', jpErr.message);
+        syncErrors.push(`japanese_resources: ${jpErr.message}`);
+      }
     }
 
     // 7. Sync Daily Fitness Logs
@@ -423,7 +452,10 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         protein: f.protein,
       }));
       const { error: fitErr } = await supabase.from('daily_fitness_logs').upsert(fitnessPayloads);
-      if (fitErr) console.error('[Supabase Push] Fitness error:', fitErr.message);
+      if (fitErr) {
+        console.error('[Supabase Push] Fitness error:', fitErr.message);
+        syncErrors.push(`daily_fitness_logs: ${fitErr.message}`);
+      }
     }
 
     // 8. Sync PR Records
@@ -438,7 +470,10 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         notes: pr.notes,
       }));
       const { error: prErr } = await supabase.from('pr_records').upsert(prPayloads);
-      if (prErr) console.error('[Supabase Push] PR records error:', prErr.message);
+      if (prErr) {
+        console.error('[Supabase Push] PR records error:', prErr.message);
+        syncErrors.push(`pr_records: ${prErr.message}`);
+      }
     }
 
     // 9. Sync Lecture Logs
@@ -452,9 +487,15 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         created_at: l.created_at || new Date().toISOString(),
       }));
       const { error: lecErr } = await supabase.from('lecture_logs').upsert(logPayloads);
-      if (lecErr) console.error('[Supabase Push] Lecture logs error:', lecErr.message);
+      if (lecErr) {
+        console.error('[Supabase Push] Lecture logs error:', lecErr.message);
+        syncErrors.push(`lecture_logs: ${lecErr.message}`);
+      }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('[Supabase Push] Error syncing store state to Supabase:', err);
+    syncErrors.push((err as Error).message || 'Unknown sync error');
   }
+
+  return syncErrors;
 }
