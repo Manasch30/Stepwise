@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
-import { Flame, Zap, Plus, RefreshCw, Layers, Menu } from 'lucide-react';
+import { Flame, Zap, Plus, RefreshCw, Layers, Menu, LogOut, User } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { createClient } from '@/lib/supabase/client';
+import Link from 'next/link';
 
 interface NavbarProps {
   onOpenQuickAdd: () => void;
@@ -12,6 +14,30 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDrawer }) => {
   const { userStats, resetToDefaults } = useStepwiseStore();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) {
+        setUserEmail(data.user.email);
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_, session) => {
+      setUserEmail(session?.user?.email || null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
 
   const xpForCurrentLevel = (userStats.level - 1) * 300;
   const xpForNextLevel = userStats.level * 300;
@@ -69,7 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
               <span>Lvl {userStats.level}</span>
             </div>
             
-            {/* Progress Bar (Hidden on tiny screens to prevent header overflow) */}
+            {/* Progress Bar */}
             <div className="hidden sm:block w-20 md:w-28 space-y-1">
               <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
                 <span>{userStats.xp} XP</span>
@@ -95,6 +121,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
             <Plus className="w-4 h-4" />
             <span className="hidden md:inline font-semibold">Log Session</span>
           </motion.button>
+
+          {/* User Auth Profile & Sign Out */}
+          {userEmail ? (
+            <button
+              onClick={handleSignOut}
+              title={`Signed in as ${userEmail}. Click to Sign Out`}
+              className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 text-xs font-bold hover:bg-white/5 transition-all"
+            >
+              <User className="w-3.5 h-3.5 text-blue-400" />
+              <span>Sign In</span>
+            </Link>
+          )}
 
           {/* Reset button helper */}
           <button
