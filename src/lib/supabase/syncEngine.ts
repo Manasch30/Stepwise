@@ -8,6 +8,8 @@ import {
   ProjectItem,
   TechStackItem,
   DailyFitnessLog,
+  LectureLog,
+  AppEvent,
 } from '@/types';
 
 let syncDebounceTimer: NodeJS.Timeout | null = null;
@@ -44,7 +46,7 @@ export async function initializeCloudSync() {
     if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
     syncDebounceTimer = setTimeout(() => {
       syncCurrentStateToCloud(state);
-    }, 1200); // Debounce 1.2s
+    }, 1200);
   });
 }
 
@@ -55,7 +57,7 @@ export function setupRealtimeSubscription(userId: string) {
     supabase.removeChannel(realtimeChannel);
   }
 
-  // Subscribe to PostgreSQL Realtime database changes across all 8 tables
+  // Subscribe to PostgreSQL Realtime database changes
   realtimeChannel = supabase
     .channel(`realtime:user_${userId}`)
     .on(
@@ -81,14 +83,15 @@ export async function fetchAndHydrateUserData(userId: string) {
 
   try {
     const [
-      { data: profile },
-      { data: subjects },
-      { data: revisionMatrix },
-      { data: japaneseResources },
-      { data: dailyFitnessLogs },
-      { data: prRecords },
-      { data: projects },
-      { data: techStack },
+      { data: profile, error: profileErr },
+      { data: subjects, error: subErr },
+      { data: revisionMatrix, error: revErr },
+      { data: japaneseResources, error: jpErr },
+      { data: dailyFitnessLogs, error: fitErr },
+      { data: prRecords, error: prErr },
+      { data: projects, error: projErr },
+      { data: techStack, error: techErr },
+      { data: lectureLogs, error: lecErr },
     ] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).single(),
       supabase.from('subjects').select('*').eq('user_id', userId),
@@ -98,7 +101,18 @@ export async function fetchAndHydrateUserData(userId: string) {
       supabase.from('pr_records').select('*').eq('user_id', userId),
       supabase.from('projects').select('*').eq('user_id', userId),
       supabase.from('tech_stack').select('*').eq('user_id', userId),
+      supabase.from('lecture_logs').select('*').eq('user_id', userId),
     ]);
+
+    if (profileErr) console.warn('[Supabase Sync] Profile fetch notice:', profileErr.message);
+    if (subErr) console.warn('[Supabase Sync] Subjects fetch notice:', subErr.message);
+    if (revErr) console.warn('[Supabase Sync] Revision matrix fetch notice:', revErr.message);
+    if (jpErr) console.warn('[Supabase Sync] Japanese resources fetch notice:', jpErr.message);
+    if (fitErr) console.warn('[Supabase Sync] Daily fitness fetch notice:', fitErr.message);
+    if (prErr) console.warn('[Supabase Sync] PR records fetch notice:', prErr.message);
+    if (projErr) console.warn('[Supabase Sync] Projects fetch notice:', projErr.message);
+    if (techErr) console.warn('[Supabase Sync] Tech stack fetch notice:', techErr.message);
+    if (lecErr) console.warn('[Supabase Sync] Lecture logs fetch notice:', lecErr.message);
 
     const isNewUserDb =
       (!projects || projects.length === 0) &&
@@ -205,6 +219,46 @@ export async function fetchAndHydrateUserData(userId: string) {
       created_at: f.created_at || new Date().toISOString(),
     }));
 
+    // 8. Transform Lecture Logs
+    const transformedLectureLogs: LectureLog[] = (lectureLogs || []).map((l) => ({
+      id: l.id,
+      subject_id: l.subject_id,
+      date: l.date || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+      hours: Number(l.hours || 0),
+      remarks: l.remarks || 'Study session logged',
+      created_at: l.created_at || new Date().toISOString(),
+    }));
+
+    // 9. Reconstruct Event Stream feed from fetched records so Event Bus stream is never empty
+    const reconstructedEvents: AppEvent[] = [];
+    transformedLectureLogs.forEach((l) => {
+      const sub = transformedSubjects.find((s) => s.id === l.subject_id);
+      reconstructedEvents.push({
+        id: 'evt_lec_' + l.id,
+        type: 'LECTURE_LOGGED',
+        payload: l,
+        timestamp: l.created_at,
+        xpEarned: Math.round(l.hours * 10),
+        description: `Logged ${l.hours} hrs for ${sub ? sub.title : 'Study Subject'}`,
+      });
+    });
+
+    transformedFitness.forEach((f) => {
+      reconstructedEvents.push({
+        id: 'evt_fit_' + f.id,
+        type: 'FITNESS_LOGGED',
+        payload: f,
+        timestamp: f.created_at,
+        xpEarned: 25,
+        description: `Logged fitness stats (${f.steps} steps, ${f.protein}g protein)`,
+      });
+    });
+
+    // Sort events newest first
+    reconstructedEvents.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
     // Hydrate store state with transformed database records
     useStepwiseStore.setState((state) => ({
       userStats: {
@@ -220,6 +274,11 @@ export async function fetchAndHydrateUserData(userId: string) {
       projects: transformedProjects.length > 0 ? transformedProjects : state.projects,
       techStack: transformedTech.length > 0 ? transformedTech : state.techStack,
       revisionMatrix: transformedRevision.length > 0 ? transformedRevision : state.revisionMatrix,
+      lectureLogs: transformedLectureLogs.length > 0 ? transformedLectureLogs : state.lectureLogs,
+      recentEvents:
+        reconstructedEvents.length > 0
+          ? reconstructedEvents.slice(0, 50)
+          : state.recentEvents,
     }));
 
     // If new user with empty tables in Supabase, seed current state into Supabase immediately!
@@ -227,7 +286,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       await syncCurrentStateToCloud(useStepwiseStore.getState());
     }
   } catch (err) {
-    console.error('Error hydrating user data from Supabase:', err);
+    console.error('[Supabase Sync] Error hydrating user data:', err);
   }
 }
 
@@ -244,7 +303,7 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
 
   try {
     // 1. Sync User Stats Profile
-    await supabase.from('profiles').upsert({
+    const { error: profileErr } = await supabase.from('profiles').upsert({
       id: userId,
       email: user.email,
       level: state.userStats.level,
@@ -252,6 +311,7 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
       streak: state.userStats.streak,
       updated_at: new Date().toISOString(),
     });
+    if (profileErr) console.error('[Supabase Push] Profile error:', profileErr.message);
 
     // 2. Sync Projects
     if (state.projects?.length) {
@@ -267,7 +327,8 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         tech_stack: p.tech_stack || [],
         updated_at: new Date().toISOString(),
       }));
-      await supabase.from('projects').upsert(projectPayloads);
+      const { error: projErr } = await supabase.from('projects').upsert(projectPayloads);
+      if (projErr) console.error('[Supabase Push] Projects error:', projErr.message);
     }
 
     // 3. Sync Tech Stack
@@ -280,7 +341,8 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         proficiency: t.proficiency,
         notes: t.notes,
       }));
-      await supabase.from('tech_stack').upsert(techPayloads);
+      const { error: techErr } = await supabase.from('tech_stack').upsert(techPayloads);
+      if (techErr) console.error('[Supabase Push] Tech stack error:', techErr.message);
     }
 
     // 4. Sync Subjects
@@ -293,7 +355,8 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         hours_target: s.hours_target,
         hours_completed: s.hours_completed,
       }));
-      await supabase.from('subjects').upsert(subjectPayloads);
+      const { error: subErr } = await supabase.from('subjects').upsert(subjectPayloads);
+      if (subErr) console.error('[Supabase Push] Subjects error:', subErr.message);
     }
 
     // 5. Sync Revision Matrix
@@ -310,7 +373,8 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         pyqs_done: !!r.checkpoints?.pyq1,
         notes_done: !!r.checkpoints?.short_notes,
       }));
-      await supabase.from('revision_matrix').upsert(revisionPayloads);
+      const { error: revErr } = await supabase.from('revision_matrix').upsert(revisionPayloads);
+      if (revErr) console.error('[Supabase Push] Revision matrix error:', revErr.message);
     }
 
     // 6. Sync Japanese Resources
@@ -325,7 +389,8 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         hours_spent: j.completed,
         level: j.level,
       }));
-      await supabase.from('japanese_resources').upsert(jpPayloads);
+      const { error: jpErr } = await supabase.from('japanese_resources').upsert(jpPayloads);
+      if (jpErr) console.error('[Supabase Push] Japanese error:', jpErr.message);
     }
 
     // 7. Sync Daily Fitness Logs
@@ -338,7 +403,8 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         calories: f.calories,
         protein: f.protein,
       }));
-      await supabase.from('daily_fitness_logs').upsert(fitnessPayloads);
+      const { error: fitErr } = await supabase.from('daily_fitness_logs').upsert(fitnessPayloads);
+      if (fitErr) console.error('[Supabase Push] Fitness error:', fitErr.message);
     }
 
     // 8. Sync PR Records
@@ -352,9 +418,24 @@ export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwi
         date: pr.date,
         notes: pr.notes,
       }));
-      await supabase.from('pr_records').upsert(prPayloads);
+      const { error: prErr } = await supabase.from('pr_records').upsert(prPayloads);
+      if (prErr) console.error('[Supabase Push] PR records error:', prErr.message);
+    }
+
+    // 9. Sync Lecture Logs
+    if (state.lectureLogs?.length) {
+      const logPayloads = state.lectureLogs.map((l) => ({
+        id: l.id,
+        user_id: userId,
+        subject_id: l.subject_id,
+        hours: l.hours,
+        remarks: l.remarks,
+        created_at: l.created_at || new Date().toISOString(),
+      }));
+      const { error: lecErr } = await supabase.from('lecture_logs').upsert(logPayloads);
+      if (lecErr) console.error('[Supabase Push] Lecture logs error:', lecErr.message);
     }
   } catch (err) {
-    console.error('Error syncing store state to Supabase:', err);
+    console.error('[Supabase Push] Error syncing store state to Supabase:', err);
   }
 }
