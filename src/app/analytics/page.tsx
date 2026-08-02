@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 
 export default function AnalyticsPage() {
-  const { lectureLogs, subjects, recentEvents, deleteLectureLog } = useStepwiseStore();
+  const { lectureLogs, subjects, japaneseResources, deleteLectureLog } = useStepwiseStore();
 
   // Helper to format Date string as YYYY-MM-DD
   const formatDateStr = (date: Date) => date.toISOString().split('T')[0];
@@ -33,19 +33,13 @@ export default function AnalyticsPage() {
     if (!dailyHoursMap[d]) {
       dailyHoursMap[d] = { gate: 0, japanese: 0, total: 0 };
     }
-    dailyHoursMap[d].gate += log.hours;
+    const sub = subjects.find((s) => s.id === log.subject_id);
+    if (sub?.track === 'Japanese') {
+      dailyHoursMap[d].japanese += log.hours;
+    } else {
+      dailyHoursMap[d].gate += log.hours;
+    }
     dailyHoursMap[d].total += log.hours;
-  });
-
-  recentEvents.forEach((evt) => {
-    const d = formatDateStr(new Date(evt.timestamp));
-    if (!dailyHoursMap[d]) {
-      dailyHoursMap[d] = { gate: 0, japanese: 0, total: 0 };
-    }
-    if (evt.type === 'RESOURCE_COMPLETED') {
-      dailyHoursMap[d].japanese += 0.5; // ~0.5 hr per resource unit
-      dailyHoursMap[d].total += 0.5;
-    }
   });
 
   // Generate 91 days (13 weeks) for Heatmap Grid

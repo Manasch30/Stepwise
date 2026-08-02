@@ -44,6 +44,7 @@ interface StepwiseState {
   logLecture: (data: { subject_id: string; topic_id?: string; hours: number; remarks: string; date?: string }) => void;
   deleteLectureLog: (id: string) => void;
   logDailyFitness: (data: { steps: number; calories: number; protein: number; date?: string }) => void;
+  deleteDailyFitnessLog: (id: string) => void;
   addPRRecord: (data: { exercise: string; weight_kg: number; reps?: number; date?: string; notes?: string }) => void;
   deletePRRecord: (id: string) => void;
   completeJapaneseResource: (id: string, progressDelta?: number) => void;
@@ -391,6 +392,9 @@ export const useStepwiseStore = create<StepwiseState>()(
 
         set({
           lectureLogs: state.lectureLogs.filter((l) => l.id !== id),
+          recentEvents: state.recentEvents.filter(
+            (e) => (e.payload as { id?: string })?.id !== id && e.id !== 'evt_lec_' + id
+          ),
           subjects: updatedSubjects,
           userStats: {
             ...state.userStats,
@@ -451,6 +455,33 @@ export const useStepwiseStore = create<StepwiseState>()(
         });
 
         eventBus.publish(appEvent);
+      },
+
+      deleteDailyFitnessLog: (id) => {
+        const state = get();
+        deleteCloudRecord('daily_fitness_logs', id);
+        const targetLog = state.dailyFitnessLogs.find((f) => f.id === id);
+        const xpDeducted = targetLog ? 25 : 0;
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
+        set({
+          dailyFitnessLogs: state.dailyFitnessLogs.filter((f) => f.id !== id),
+          recentEvents: state.recentEvents.filter(
+            (e) => (e.payload as { id?: string })?.id !== id && e.id !== 'evt_fit_' + id
+          ),
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
+          activeToast: {
+            id: 'toast_' + Date.now(),
+            title: `🗑️ Fitness Log Deleted (-25 XP)`,
+            message: `Removed daily calorie & step log`,
+            xp: -xpDeducted,
+          },
+        });
       },
 
       // ==========================================

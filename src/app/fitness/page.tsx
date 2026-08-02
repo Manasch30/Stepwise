@@ -20,6 +20,7 @@ export default function FitnessPage() {
     dailyFitnessLogs,
     prRecords,
     logDailyFitness,
+    deleteDailyFitnessLog,
     addPRRecord,
     deletePRRecord,
   } = useStepwiseStore();
@@ -268,15 +269,25 @@ export default function FitnessPage() {
                 <th className="py-3 px-2">Steps</th>
                 <th className="py-3 px-2">Calories</th>
                 <th className="py-3 px-2">Protein</th>
+                <th className="py-3 px-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {dailyFitnessLogs.map((log) => (
-                <tr key={log.id} className="text-zinc-200 font-mono hover:bg-white/5">
+                <tr key={log.id} className="text-zinc-200 font-mono hover:bg-white/5 group">
                   <td className="py-3 px-2 font-bold text-white">{log.date}</td>
                   <td className="py-3 px-2 text-blue-400">{log.steps.toLocaleString()} steps</td>
                   <td className="py-3 px-2 text-orange-400">{log.calories} kcal</td>
                   <td className="py-3 px-2 text-emerald-400 font-bold">{log.protein} g</td>
+                  <td className="py-3 px-2 text-right">
+                    <button
+                      onClick={() => deleteDailyFitnessLog(log.id)}
+                      title="Delete log entry & deduct XP"
+                      className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-80 group-hover:opacity-100"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
