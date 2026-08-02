@@ -20,10 +20,14 @@ import {
   ChevronRight,
   LogOut,
   User,
+  Cloud,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import { createClient } from '@/lib/supabase/client';
+import { manualCloudSync } from '@/lib/supabase/syncEngine';
 
 interface MobileNavDrawerProps {
   isOpen: boolean;
@@ -35,6 +39,23 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
   const { userStats, getOverallProgress } = useStepwiseStore();
   const overallProgress = getOverallProgress();
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    setSyncStatus('idle');
+    const result = await manualCloudSync();
+    setIsSyncing(false);
+    if (result.success) {
+      setSyncStatus('success');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    } else {
+      setSyncStatus('error');
+      alert(result.message);
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    }
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -197,6 +218,31 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
                   );
                 })}
               </div>
+            </div>
+
+            {/* Manual Cloud Sync Button */}
+            <div className="pt-2">
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className={`w-full py-2.5 px-4 rounded-xl border text-xs font-bold transition-all flex items-center justify-between ${
+                  syncStatus === 'success'
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                    : 'bg-zinc-900 border-white/10 text-zinc-300 hover:text-white hover:border-blue-500/40'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {isSyncing ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
+                  ) : syncStatus === 'success' ? (
+                    <Check className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Cloud className="w-4 h-4 text-blue-400" />
+                  )}
+                  <span>{isSyncing ? 'Syncing with Supabase...' : syncStatus === 'success' ? 'Database Synced!' : 'Sync Cloud Now'}</span>
+                </div>
+                <span className="text-[10px] text-zinc-500 font-mono">ON DEMAND</span>
+              </button>
             </div>
 
             {/* Footer Progress Metric */}

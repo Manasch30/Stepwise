@@ -16,6 +16,25 @@ let syncDebounceTimer: NodeJS.Timeout | null = null;
 let realtimeChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
 let lastLocalWriteTimestamp = 0;
 
+export async function manualCloudSync(): Promise<{ success: boolean; message: string }> {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.user) {
+    return { success: false, message: 'Please sign in to sync with cloud.' };
+  }
+
+  try {
+    await syncCurrentStateToCloud(useStepwiseStore.getState());
+    await fetchAndHydrateUserData(session.user.id);
+    return { success: true, message: 'Cloud Sync Successful! All tables synchronized.' };
+  } catch (err: unknown) {
+    return { success: false, message: (err as Error).message || 'Failed to sync with cloud.' };
+  }
+}
+
 export async function initializeCloudSync() {
   const supabase = createClient();
 
