@@ -1,8 +1,18 @@
 import { createClient } from './client';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
+import {
+  Subject,
+  JapaneseResource,
+  PRRecord,
+  ChapterRevisionItem,
+  ProjectItem,
+  TechStackItem,
+  DailyFitnessLog,
+} from '@/types';
 
 let syncDebounceTimer: NodeJS.Timeout | null = null;
 let realtimeChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
+let lastLocalWriteTimestamp = 0;
 
 export async function initializeCloudSync() {
   const supabase = createClient();
@@ -34,7 +44,7 @@ export async function initializeCloudSync() {
     if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
     syncDebounceTimer = setTimeout(() => {
       syncCurrentStateToCloud(state);
-    }, 1500); // Debounce 1.5 seconds to avoid spamming network requests
+    }, 1200); // Debounce 1.2s
   });
 }
 
@@ -55,7 +65,11 @@ export function setupRealtimeSubscription(userId: string) {
         schema: 'public',
       },
       () => {
-        // Re-hydrate store when database updates on remote device
+        // Ignore echo-back events triggered by local writes in the last 3 seconds
+        if (Date.now() - lastLocalWriteTimestamp < 3000) {
+          return;
+        }
+        // Re-hydrate store when database updates from remote device
         fetchAndHydrateUserData(userId);
       }
     )
@@ -91,7 +105,107 @@ export async function fetchAndHydrateUserData(userId: string) {
       (!subjects || subjects.length === 0) &&
       (!revisionMatrix || revisionMatrix.length === 0);
 
-    // Hydrate store state with database records if available
+    // 1. Transform Subjects
+    const transformedSubjects: Subject[] = (subjects || []).map((s) => {
+      const hoursCompleted = Number(s.hours_completed || 0);
+      const hoursTarget = Number(s.hours_target || 30);
+      const ratio = hoursTarget > 0 ? Math.min(100, Math.floor((hoursCompleted / hoursTarget) * 100)) : 0;
+      let checkpoint = 0;
+      if (ratio >= 100) checkpoint = 100;
+      else if (ratio >= 80) checkpoint = 80;
+      else if (ratio >= 60) checkpoint = 60;
+      else if (ratio >= 40) checkpoint = 40;
+      else if (ratio >= 20) checkpoint = 20;
+
+      const status = ratio >= 100 ? 'completed' : hoursCompleted > 0 ? 'in_progress' : 'not_started';
+      const track = (s.track || 'GATE CS') as 'GATE CS' | 'GATE DA' | 'Japanese' | 'Fitness';
+      const goalId = track === 'GATE CS' ? 'gate_cs' : track === 'GATE DA' ? 'gate_da' : 'projects';
+
+      return {
+        id: s.id,
+        goal_id: goalId,
+        track,
+        title: s.title,
+        hours_target: hoursTarget,
+        hours_completed: hoursCompleted,
+        checkpoint,
+        status,
+      };
+    });
+
+    // 2. Transform Japanese Resources
+    const transformedJp: JapaneseResource[] = (japaneseResources || []).map((j) => {
+      const target = Number(j.episodes_or_chapters ?? j.target ?? 30);
+      const completed = Number(j.completed ?? j.hours_spent ?? 0);
+      return {
+        id: j.id,
+        level: j.level || 'N5',
+        resource_type: j.type || j.resource_type || 'PDF',
+        title: j.title || 'Japanese Resource',
+        target,
+        completed,
+        finished: completed >= target,
+      };
+    });
+
+    // 3. Transform PR Records
+    const transformedPRs: PRRecord[] = (prRecords || []).map((pr) => ({
+      id: pr.id,
+      exercise: pr.exercise || 'Bench Press',
+      weight_kg: Number(pr.weight ?? pr.weight_kg ?? 0),
+      reps: Number(pr.reps ?? 1),
+      date: pr.date || new Date().toISOString().split('T')[0],
+      notes: pr.notes || '',
+    }));
+
+    // 4. Transform Revision Matrix
+    const transformedRevision: ChapterRevisionItem[] = (revisionMatrix || []).map((r) => ({
+      id: r.id,
+      category: (r.track || r.category || 'gate_cs') as 'gate_cs' | 'gate_da' | 'general_aptitude',
+      subject: r.subject || '',
+      chapter: r.chapter || '',
+      checkpoints: r.checkpoints || {
+        rev1: !!r.revision1,
+        rev2: !!r.revision2,
+        rev3: !!r.revision3,
+        pyq1: !!r.pyqs_done,
+        short_notes: !!r.notes_done,
+      },
+    }));
+
+    // 5. Transform Projects
+    const transformedProjects: ProjectItem[] = (projects || []).map((p) => ({
+      id: p.id,
+      title: p.title || 'Untitled Project',
+      description: p.description || '',
+      category: p.category || 'Web App',
+      progress: Number(p.progress || 0),
+      github: p.github || '',
+      status: p.status || 'in_progress',
+      tech_stack: Array.isArray(p.tech_stack) ? p.tech_stack : [],
+      updated_at: p.updated_at || new Date().toISOString(),
+    }));
+
+    // 6. Transform Tech Stack
+    const transformedTech: TechStackItem[] = (techStack || []).map((t) => ({
+      id: t.id,
+      name: t.name || '',
+      category: t.category || 'Frontend & UI',
+      proficiency: t.proficiency || 'Learning',
+      notes: t.notes || '',
+    }));
+
+    // 7. Transform Daily Fitness Logs
+    const transformedFitness: DailyFitnessLog[] = (dailyFitnessLogs || []).map((f) => ({
+      id: f.id,
+      date: f.date || new Date().toISOString().split('T')[0],
+      steps: Number(f.steps || 0),
+      calories: Number(f.calories || 0),
+      protein: Number(f.protein || 0),
+      created_at: f.created_at || new Date().toISOString(),
+    }));
+
+    // Hydrate store state with transformed database records
     useStepwiseStore.setState((state) => ({
       userStats: {
         ...state.userStats,
@@ -99,12 +213,13 @@ export async function fetchAndHydrateUserData(userId: string) {
         xp: profile?.xp ?? state.userStats.xp,
         streak: profile?.streak ?? state.userStats.streak,
       },
-      subjects: subjects && subjects.length > 0 ? subjects : state.subjects,
-      japaneseResources: japaneseResources && japaneseResources.length > 0 ? japaneseResources : state.japaneseResources,
-      dailyFitnessLogs: dailyFitnessLogs && dailyFitnessLogs.length > 0 ? dailyFitnessLogs : state.dailyFitnessLogs,
-      prRecords: prRecords && prRecords.length > 0 ? prRecords : state.prRecords,
-      projects: projects && projects.length > 0 ? projects : state.projects,
-      techStack: techStack && techStack.length > 0 ? techStack : state.techStack,
+      subjects: transformedSubjects.length > 0 ? transformedSubjects : state.subjects,
+      japaneseResources: transformedJp.length > 0 ? transformedJp : state.japaneseResources,
+      dailyFitnessLogs: transformedFitness.length > 0 ? transformedFitness : state.dailyFitnessLogs,
+      prRecords: transformedPRs.length > 0 ? transformedPRs : state.prRecords,
+      projects: transformedProjects.length > 0 ? transformedProjects : state.projects,
+      techStack: transformedTech.length > 0 ? transformedTech : state.techStack,
+      revisionMatrix: transformedRevision.length > 0 ? transformedRevision : state.revisionMatrix,
     }));
 
     // If new user with empty tables in Supabase, seed current state into Supabase immediately!
@@ -118,11 +233,14 @@ export async function fetchAndHydrateUserData(userId: string) {
 
 export async function syncCurrentStateToCloud(state: ReturnType<typeof useStepwiseStore.getState>) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) return; // Only sync if logged in
 
   const userId = user.id;
+  lastLocalWriteTimestamp = Date.now();
 
   try {
     // 1. Sync User Stats Profile
