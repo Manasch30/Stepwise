@@ -445,189 +445,229 @@ export async function syncCurrentStateToCloud(
     }
 
     // 2. Sync Projects
-    if (shouldSync('projects') && state.projects?.length) {
-      const projectPayloads = state.projects.map((p) => ({
-        id: p.id,
-        user_id: userId,
-        title: p.title,
-        description: p.description,
-        category: p.category,
-        progress: p.progress,
-        github: p.github,
-        status: p.status,
-        tech_stack: p.tech_stack || [],
-        updated_at: new Date().toISOString(),
-      }));
-      const { error: projErr } = await supabase.from('projects').upsert(projectPayloads);
-      if (projErr) {
-        console.error('[Supabase Push] Projects error:', projErr.message);
-        syncErrors.push(`projects: ${projErr.message}`);
+    if (shouldSync('projects')) {
+      if (state.projects && state.projects.length > 0) {
+        const projectPayloads = state.projects.map((p) => ({
+          id: p.id,
+          user_id: userId,
+          title: p.title,
+          description: p.description,
+          category: p.category,
+          progress: p.progress,
+          github: p.github,
+          status: p.status,
+          tech_stack: p.tech_stack || [],
+          updated_at: new Date().toISOString(),
+        }));
+        const { error: projErr } = await supabase.from('projects').upsert(projectPayloads);
+        if (projErr) {
+          console.error('[Supabase Push] Projects error:', projErr.message);
+          syncErrors.push(`projects: ${projErr.message}`);
+        }
+      } else {
+        await supabase.from('projects').delete().eq('user_id', userId);
       }
     }
 
     // 3. Sync Tech Stack
-    if (shouldSync('tech_stack') && state.techStack?.length) {
-      const techPayloads = state.techStack.map((t) => ({
-        id: t.id,
-        user_id: userId,
-        name: t.name,
-        category: t.category,
-        proficiency: t.proficiency,
-        notes: t.notes,
-      }));
-      const { error: techErr } = await supabase.from('tech_stack').upsert(techPayloads);
-      if (techErr) {
-        console.error('[Supabase Push] Tech stack error:', techErr.message);
-        syncErrors.push(`tech_stack: ${techErr.message}`);
+    if (shouldSync('tech_stack')) {
+      if (state.techStack && state.techStack.length > 0) {
+        const techPayloads = state.techStack.map((t) => ({
+          id: t.id,
+          user_id: userId,
+          name: t.name,
+          category: t.category,
+          proficiency: t.proficiency,
+          notes: t.notes,
+        }));
+        const { error: techErr } = await supabase.from('tech_stack').upsert(techPayloads);
+        if (techErr) {
+          console.error('[Supabase Push] Tech stack error:', techErr.message);
+          syncErrors.push(`tech_stack: ${techErr.message}`);
+        }
+      } else {
+        await supabase.from('tech_stack').delete().eq('user_id', userId);
       }
     }
 
     // 4. Sync Subjects
-    if (shouldSync('subjects') && state.subjects?.length) {
-      const subjectPayloads = state.subjects.map((s) => ({
-        id: s.id,
-        user_id: userId,
-        title: s.title,
-        track: s.track,
-        hours_target: s.hours_target,
-        hours_completed: s.hours_completed,
-      }));
-      const { error: subErr } = await supabase.from('subjects').upsert(subjectPayloads);
-      if (subErr) {
-        console.error('[Supabase Push] Subjects error:', subErr.message);
-        syncErrors.push(`subjects: ${subErr.message}`);
+    if (shouldSync('subjects')) {
+      if (state.subjects && state.subjects.length > 0) {
+        const subjectPayloads = state.subjects.map((s) => ({
+          id: s.id,
+          user_id: userId,
+          title: s.title,
+          track: s.track,
+          hours_target: s.hours_target,
+          hours_completed: s.hours_completed,
+        }));
+        const { error: subErr } = await supabase.from('subjects').upsert(subjectPayloads);
+        if (subErr) {
+          console.error('[Supabase Push] Subjects error:', subErr.message);
+          syncErrors.push(`subjects: ${subErr.message}`);
+        }
+      } else {
+        await supabase.from('subjects').delete().eq('user_id', userId);
       }
     }
 
     // 5. Sync Revision Matrix
-    if (shouldSync('revision_matrix') && state.revisionMatrix?.length) {
-      const revisionPayloads = state.revisionMatrix.map((r) => ({
-        id: r.id,
-        user_id: userId,
-        subject: r.subject,
-        chapter: r.chapter,
-        track: r.category,
-        revision1: !!r.checkpoints?.rev1,
-        revision2: !!r.checkpoints?.rev2,
-        revision3: !!r.checkpoints?.rev3,
-        pyqs_done: !!r.checkpoints?.pyq1,
-        notes_done: !!r.checkpoints?.short_notes,
-      }));
-      const { error: revErr } = await supabase.from('revision_matrix').upsert(revisionPayloads);
-      if (revErr) {
-        console.error('[Supabase Push] Revision matrix error:', revErr.message);
-        syncErrors.push(`revision_matrix: ${revErr.message}`);
+    if (shouldSync('revision_matrix')) {
+      if (state.revisionMatrix && state.revisionMatrix.length > 0) {
+        const revisionPayloads = state.revisionMatrix.map((r) => ({
+          id: r.id,
+          user_id: userId,
+          subject: r.subject,
+          chapter: r.chapter,
+          track: r.category,
+          revision1: !!r.checkpoints?.rev1,
+          revision2: !!r.checkpoints?.rev2,
+          revision3: !!r.checkpoints?.rev3,
+          pyqs_done: !!r.checkpoints?.pyq1,
+          notes_done: !!r.checkpoints?.short_notes,
+        }));
+        const { error: revErr } = await supabase.from('revision_matrix').upsert(revisionPayloads);
+        if (revErr) {
+          console.error('[Supabase Push] Revision matrix error:', revErr.message);
+          syncErrors.push(`revision_matrix: ${revErr.message}`);
+        }
+      } else {
+        await supabase.from('revision_matrix').delete().eq('user_id', userId);
       }
     }
 
     // 6. Sync Japanese Resources
-    if (shouldSync('japanese_resources') && state.japaneseResources?.length) {
-      const jpPayloads = state.japaneseResources.map((j) => ({
-        id: j.id,
-        user_id: userId,
-        title: j.title,
-        type: j.resource_type,
-        episodes_or_chapters: j.target,
-        completed: j.completed,
-        hours_spent: j.completed,
-        level: j.level,
-      }));
-      const { error: jpErr } = await supabase.from('japanese_resources').upsert(jpPayloads);
-      if (jpErr) {
-        console.error('[Supabase Push] Japanese error:', jpErr.message);
-        syncErrors.push(`japanese_resources: ${jpErr.message}`);
+    if (shouldSync('japanese_resources')) {
+      if (state.japaneseResources && state.japaneseResources.length > 0) {
+        const jpPayloads = state.japaneseResources.map((j) => ({
+          id: j.id,
+          user_id: userId,
+          title: j.title,
+          type: j.resource_type,
+          episodes_or_chapters: j.target,
+          completed: j.completed,
+          hours_spent: j.completed,
+          level: j.level,
+        }));
+        const { error: jpErr } = await supabase.from('japanese_resources').upsert(jpPayloads);
+        if (jpErr) {
+          console.error('[Supabase Push] Japanese error:', jpErr.message);
+          syncErrors.push(`japanese_resources: ${jpErr.message}`);
+        }
+      } else {
+        await supabase.from('japanese_resources').delete().eq('user_id', userId);
       }
     }
 
     // 7. Sync Daily Fitness Logs
-    if (shouldSync('daily_fitness_logs') && state.dailyFitnessLogs?.length) {
-      const fitnessPayloads = state.dailyFitnessLogs.map((f) => ({
-        id: f.id,
-        user_id: userId,
-        date: f.date,
-        steps: f.steps,
-        calories: f.calories,
-        protein: f.protein,
-      }));
-      const { error: fitErr } = await supabase.from('daily_fitness_logs').upsert(fitnessPayloads);
-      if (fitErr) {
-        console.error('[Supabase Push] Fitness error:', fitErr.message);
-        syncErrors.push(`daily_fitness_logs: ${fitErr.message}`);
+    if (shouldSync('daily_fitness_logs')) {
+      if (state.dailyFitnessLogs && state.dailyFitnessLogs.length > 0) {
+        const fitnessPayloads = state.dailyFitnessLogs.map((f) => ({
+          id: f.id,
+          user_id: userId,
+          date: f.date,
+          steps: f.steps,
+          calories: f.calories,
+          protein: f.protein,
+        }));
+        const { error: fitErr } = await supabase.from('daily_fitness_logs').upsert(fitnessPayloads);
+        if (fitErr) {
+          console.error('[Supabase Push] Fitness error:', fitErr.message);
+          syncErrors.push(`daily_fitness_logs: ${fitErr.message}`);
+        }
+      } else {
+        await supabase.from('daily_fitness_logs').delete().eq('user_id', userId);
       }
     }
 
     // 8. Sync PR Records
-    if (shouldSync('pr_records') && state.prRecords?.length) {
-      const prPayloads = state.prRecords.map((pr) => ({
-        id: pr.id,
-        user_id: userId,
-        exercise: pr.exercise,
-        weight: pr.weight_kg,
-        reps: pr.reps,
-        date: pr.date,
-        notes: pr.notes,
-      }));
-      const { error: prErr } = await supabase.from('pr_records').upsert(prPayloads);
-      if (prErr) {
-        console.error('[Supabase Push] PR records error:', prErr.message);
-        syncErrors.push(`pr_records: ${prErr.message}`);
+    if (shouldSync('pr_records')) {
+      if (state.prRecords && state.prRecords.length > 0) {
+        const prPayloads = state.prRecords.map((pr) => ({
+          id: pr.id,
+          user_id: userId,
+          exercise: pr.exercise,
+          weight: pr.weight_kg,
+          reps: pr.reps,
+          date: pr.date,
+          notes: pr.notes,
+        }));
+        const { error: prErr } = await supabase.from('pr_records').upsert(prPayloads);
+        if (prErr) {
+          console.error('[Supabase Push] PR records error:', prErr.message);
+          syncErrors.push(`pr_records: ${prErr.message}`);
+        }
+      } else {
+        await supabase.from('pr_records').delete().eq('user_id', userId);
       }
     }
 
     // 9. Sync Lecture Logs
-    if (shouldSync('lecture_logs') && state.lectureLogs?.length) {
-      const logPayloads = state.lectureLogs.map((l) => ({
-        id: l.id,
-        user_id: userId,
-        subject_id: l.subject_id,
-        hours: l.hours,
-        remarks: l.remarks,
-        created_at: l.created_at || new Date().toISOString(),
-      }));
-      const { error: lecErr } = await supabase.from('lecture_logs').upsert(logPayloads);
-      if (lecErr) {
-        console.error('[Supabase Push] Lecture logs error:', lecErr.message);
-        syncErrors.push(`lecture_logs: ${lecErr.message}`);
+    if (shouldSync('lecture_logs')) {
+      if (state.lectureLogs && state.lectureLogs.length > 0) {
+        const logPayloads = state.lectureLogs.map((l) => ({
+          id: l.id,
+          user_id: userId,
+          subject_id: l.subject_id,
+          hours: l.hours,
+          remarks: l.remarks,
+          created_at: l.created_at || new Date().toISOString(),
+        }));
+        const { error: lecErr } = await supabase.from('lecture_logs').upsert(logPayloads);
+        if (lecErr) {
+          console.error('[Supabase Push] Lecture logs error:', lecErr.message);
+          syncErrors.push(`lecture_logs: ${lecErr.message}`);
+        }
+      } else {
+        await supabase.from('lecture_logs').delete().eq('user_id', userId);
       }
     }
 
     // 10. Sync Roadmap Goals
-    if (shouldSync('roadmap') && state.roadmap?.length) {
-      const roadmapPayloads = state.roadmap.map((r) => ({
-        id: r.id,
-        user_id: userId,
-        month: r.month,
-        week_number: r.week_number,
-        goal: r.goal,
-        priority: r.priority,
-        completed: r.completed,
-      }));
-      const { error: rmErr } = await supabase.from('roadmap').upsert(roadmapPayloads);
-      if (rmErr) {
-        console.error('[Supabase Push] Roadmap error:', rmErr.message);
-        syncErrors.push(`roadmap: ${rmErr.message}`);
+    if (shouldSync('roadmap')) {
+      if (state.roadmap && state.roadmap.length > 0) {
+        const roadmapPayloads = state.roadmap.map((r) => ({
+          id: r.id,
+          user_id: userId,
+          month: r.month,
+          week_number: r.week_number,
+          goal: r.goal,
+          priority: r.priority,
+          completed: r.completed,
+        }));
+        const { error: rmErr } = await supabase.from('roadmap').upsert(roadmapPayloads);
+        if (rmErr) {
+          console.error('[Supabase Push] Roadmap error:', rmErr.message);
+          syncErrors.push(`roadmap: ${rmErr.message}`);
+        }
+      } else {
+        await supabase.from('roadmap').delete().eq('user_id', userId);
       }
     }
 
     // 11. Sync Books
-    if (shouldSync('books') && state.books?.length) {
-      const bookPayloads = state.books.map((b) => ({
-        id: b.id,
-        user_id: userId,
-        title: b.title,
-        author: b.author,
-        category: b.category,
-        total_pages: b.total_pages,
-        completed_pages: b.completed_pages,
-        status: b.status,
-        notes: b.notes,
-        created_at: b.created_at,
-        updated_at: b.updated_at,
-      }));
-      const { error: bkErr } = await supabase.from('books').upsert(bookPayloads);
-      if (bkErr) {
-        console.error('[Supabase Push] Books error:', bkErr.message);
-        syncErrors.push(`books: ${bkErr.message}`);
+    if (shouldSync('books')) {
+      if (state.books && state.books.length > 0) {
+        const bookPayloads = state.books.map((b) => ({
+          id: b.id,
+          user_id: userId,
+          title: b.title,
+          author: b.author,
+          category: b.category,
+          total_pages: b.total_pages,
+          completed_pages: b.completed_pages,
+          status: b.status,
+          notes: b.notes,
+          created_at: b.created_at,
+          updated_at: b.updated_at,
+        }));
+        const { error: bkErr } = await supabase.from('books').upsert(bookPayloads);
+        if (bkErr) {
+          console.error('[Supabase Push] Books error:', bkErr.message);
+          syncErrors.push(`books: ${bkErr.message}`);
+        }
+      } else {
+        await supabase.from('books').delete().eq('user_id', userId);
       }
     }
   } catch (err: unknown) {
