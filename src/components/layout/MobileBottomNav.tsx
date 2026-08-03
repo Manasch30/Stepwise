@@ -7,7 +7,7 @@ import {
   LayoutDashboard,
   Cpu,
   Table2,
-  Dumbbell,
+  Languages,
   Code,
   Menu,
   User,
@@ -44,7 +44,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenDrawer }
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'GATE', href: '/gate', icon: Cpu },
     { name: 'Matrix', href: '/revision-matrix', icon: Table2 },
-    { name: 'Fitness', href: '/fitness', icon: Dumbbell },
+    { name: 'Japanese', href: '/japanese', icon: Languages },
     { name: 'Projects', href: '/projects', icon: Code },
   ];
 

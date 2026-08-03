@@ -10,6 +10,7 @@ import {
   DailyFitnessLog,
   LectureLog,
   RoadmapItem,
+  Book,
   AppEvent,
 } from '@/types';
 
@@ -147,6 +148,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       { data: techStack, error: techErr },
       { data: lectureLogs, error: lecErr },
       { data: roadmap, error: rmErr },
+      { data: books, error: bkErr },
     ] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).single(),
       supabase.from('subjects').select('*').eq('user_id', userId),
@@ -158,6 +160,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       supabase.from('tech_stack').select('*').eq('user_id', userId),
       supabase.from('lecture_logs').select('*').eq('user_id', userId),
       supabase.from('roadmap').select('*').eq('user_id', userId),
+      supabase.from('books').select('*').eq('user_id', userId),
     ]);
 
     if (profileErr) console.warn('[Supabase Sync] Profile fetch notice:', profileErr.message);
@@ -170,6 +173,7 @@ export async function fetchAndHydrateUserData(userId: string) {
     if (techErr) console.warn('[Supabase Sync] Tech stack fetch notice:', techErr.message);
     if (lecErr) console.warn('[Supabase Sync] Lecture logs fetch notice:', lecErr.message);
     if (rmErr) console.warn('[Supabase Sync] Roadmap fetch notice:', rmErr.message);
+    if (bkErr) console.warn('[Supabase Sync] Books fetch notice:', bkErr.message);
 
     const isNewUserDb =
       (!projects || projects.length === 0) &&
@@ -296,7 +300,21 @@ export async function fetchAndHydrateUserData(userId: string) {
       completed: !!r.completed,
     }));
 
-    // 10. Reconstruct Event Stream feed from fetched records so Event Bus stream is never empty
+    // 10. Transform Books
+    const transformedBooks: Book[] = (books || []).map((b) => ({
+      id: b.id,
+      title: b.title || 'Untitled Book',
+      author: b.author || 'Unknown Author',
+      category: b.category || 'General Reading',
+      total_pages: Number(b.total_pages || 100),
+      completed_pages: Number(b.completed_pages || 0),
+      status: (b.status || 'reading') as 'reading' | 'completed' | 'paused',
+      notes: b.notes || '',
+      created_at: b.created_at || new Date().toISOString(),
+      updated_at: b.updated_at || new Date().toISOString(),
+    }));
+
+    // 11. Reconstruct Event Stream feed from fetched records so Event Bus stream is never empty
     const reconstructedEvents: AppEvent[] = [];
     transformedLectureLogs.forEach((l) => {
       const sub = transformedSubjects.find((s) => s.id === l.subject_id);
@@ -343,6 +361,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       revisionMatrix: revisionMatrix !== null && (transformedRevision.length > 0 || !isNewUserDb) ? transformedRevision : state.revisionMatrix,
       lectureLogs: lectureLogs !== null ? transformedLectureLogs : state.lectureLogs,
       roadmap: roadmap !== null ? transformedRoadmap : state.roadmap,
+      books: books !== null ? transformedBooks : state.books,
       recentEvents:
         reconstructedEvents.length > 0
           ? reconstructedEvents.slice(0, 50)
@@ -549,6 +568,28 @@ export async function syncCurrentStateToCloud(
       if (rmErr) {
         console.error('[Supabase Push] Roadmap error:', rmErr.message);
         syncErrors.push(`roadmap: ${rmErr.message}`);
+      }
+    }
+
+    // 11. Sync Books
+    if (state.books?.length) {
+      const bookPayloads = state.books.map((b) => ({
+        id: b.id,
+        user_id: userId,
+        title: b.title,
+        author: b.author,
+        category: b.category,
+        total_pages: b.total_pages,
+        completed_pages: b.completed_pages,
+        status: b.status,
+        notes: b.notes,
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+      }));
+      const { error: bkErr } = await supabase.from('books').upsert(bookPayloads);
+      if (bkErr) {
+        console.error('[Supabase Push] Books error:', bkErr.message);
+        syncErrors.push(`books: ${bkErr.message}`);
       }
     }
   } catch (err: unknown) {

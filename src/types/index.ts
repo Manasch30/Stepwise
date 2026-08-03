@@ -147,12 +147,26 @@ export interface Achievement {
   unlocked_at?: string;
 }
 
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  category: string;
+  total_pages: number;
+  completed_pages: number;
+  status: 'reading' | 'completed' | 'paused';
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type EventType =
   | 'LECTURE_LOGGED'
   | 'FITNESS_LOGGED'
   | 'RESOURCE_COMPLETED'
   | 'PROJECT_UPDATED'
   | 'WEEKLY_REVIEWED'
+  | 'BOOK_READ'
   | 'ACHIEVEMENT_UNLOCKED';
 
 export interface AppEvent {

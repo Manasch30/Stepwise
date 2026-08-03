@@ -14,6 +14,7 @@ import {
   ChapterRevisionItem,
   RevisionCheckpoints,
   TechStackItem,
+  Book,
   Achievement,
   UserStats,
   AppEvent,
@@ -36,6 +37,7 @@ interface StepwiseState {
   techStack: TechStackItem[];
   roadmap: RoadmapItem[];
   revisionMatrix: ChapterRevisionItem[];
+  books: Book[];
   achievements: Achievement[];
   recentEvents: AppEvent[];
   activeToast: { id: string; title: string; message: string; xp: number } | null;
@@ -51,6 +53,9 @@ interface StepwiseState {
   updateProject: (id: string, progress: number) => void;
   addProject: (project: Omit<ProjectItem, 'id'>) => void;
   deleteProject: (id: string) => void;
+  addBook: (book: Omit<Book, 'id' | 'created_at' | 'updated_at'>) => void;
+  updateBookPages: (id: string, pagesRead: number) => void;
+  deleteBook: (id: string) => void;
   addTechStackItem: (item: Omit<TechStackItem, 'id'>) => void;
   deleteTechStackItem: (id: string) => void;
   logWeeklyReview: (data: Omit<WeeklyReview, 'id' | 'date'>) => void;
@@ -193,6 +198,7 @@ export const useStepwiseStore = create<StepwiseState>()(
       techStack: initialTechStack,
       roadmap: initialRoadmap,
       revisionMatrix: initialRevisionMatrix,
+      books: [],
       achievements: initialAchievements,
       recentEvents: [],
       activeToast: null,
@@ -211,6 +217,7 @@ export const useStepwiseStore = create<StepwiseState>()(
         weeklyReviews: [],
         projects: initialProjects,
         roadmap: initialRoadmap,
+        books: [],
         achievements: initialAchievements,
         recentEvents: [],
         activeToast: null,
@@ -648,6 +655,108 @@ export const useStepwiseStore = create<StepwiseState>()(
             id: 'toast_' + Date.now(),
             title: `🗑️ Project Removed (-30 XP)`,
             message: `Deleted project from showcase`,
+            xp: -xpDeducted,
+          },
+        });
+      },
+
+      // ==========================================
+      // BOOK READING TRACKER ACTIONS
+      // ==========================================
+      addBook: (bookData) => {
+        const state = get();
+        const newBook: Book = {
+          id: 'bk_' + Date.now(),
+          ...bookData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const xpEarned = 30;
+        const newTotalXp = state.userStats.xp + xpEarned;
+        const newLevel = Math.floor(newTotalXp / 300) + 1;
+
+        set({
+          books: [newBook, ...(state.books || [])],
+          userStats: { ...state.userStats, xp: newTotalXp, level: newLevel },
+          activeToast: {
+            id: 'toast_' + Date.now(),
+            title: `📚 +30 XP Book Added!`,
+            message: `Added "${bookData.title}" by ${bookData.author || 'Unknown Author'}`,
+            xp: xpEarned,
+          },
+        });
+      },
+
+      updateBookPages: (id, pagesRead) => {
+        const state = get();
+        let bookTitle = '';
+        const updatedBooks = (state.books || []).map((b) => {
+          if (b.id === id) {
+            bookTitle = b.title;
+            const newCompletedPages = Math.min(b.total_pages, Math.max(0, pagesRead));
+            const status: Book['status'] =
+              newCompletedPages >= b.total_pages ? 'completed' : 'reading';
+            return {
+              ...b,
+              completed_pages: newCompletedPages,
+              status,
+              updated_at: new Date().toISOString(),
+            };
+          }
+          return b;
+        });
+
+        const xpEarned = 15;
+        const newTotalXp = state.userStats.xp + xpEarned;
+        const newLevel = Math.floor(newTotalXp / 300) + 1;
+
+        const appEvent: AppEvent = {
+          id: 'evt_' + Date.now(),
+          type: 'BOOK_READ',
+          payload: { id, pagesRead },
+          timestamp: new Date().toISOString(),
+          xpEarned,
+          description: `Read up to page ${pagesRead} in "${bookTitle}"`,
+        };
+
+        set({
+          books: updatedBooks,
+          userStats: { ...state.userStats, xp: newTotalXp, level: newLevel },
+          recentEvents: [appEvent, ...state.recentEvents].slice(0, 50),
+          activeToast: {
+            id: 'toast_' + Date.now(),
+            title: `📖 +15 XP Reading Progress!`,
+            message: `Updated "${bookTitle}" to page ${pagesRead}`,
+            xp: xpEarned,
+          },
+        });
+
+        eventBus.publish(appEvent);
+      },
+
+      deleteBook: (id) => {
+        const state = get();
+        deleteCloudRecord('books', id);
+        const targetBook = (state.books || []).find((b) => b.id === id);
+        const xpDeducted = 30;
+        const newXp = Math.max(0, state.userStats.xp - xpDeducted);
+        const newLevel = Math.max(1, Math.floor(newXp / 300) + 1);
+
+        set({
+          books: (state.books || []).filter((b) => b.id !== id),
+          recentEvents: state.recentEvents.filter(
+            (e) => (e.payload as { id?: string })?.id !== id
+          ),
+          userStats: {
+            ...state.userStats,
+            xp: newXp,
+            level: newLevel,
+          },
+          activeToast: {
+            id: 'toast_' + Date.now(),
+            title: `🗑️ Book Removed (-30 XP)`,
+            message: targetBook ? `Removed "${targetBook.title}"` : 'Book deleted',
             xp: -xpDeducted,
           },
         });

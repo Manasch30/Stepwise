@@ -235,3 +235,26 @@ CREATE POLICY "Users manage own roadmap"
   ON public.roadmap FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+
+-- 11. BOOKS TABLE (Reading & Book Tracker)
+CREATE TABLE IF NOT EXISTS public.books (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  author TEXT,
+  category TEXT,
+  total_pages INT NOT NULL DEFAULT 100,
+  completed_pages INT NOT NULL DEFAULT 0,
+  status TEXT CHECK (status IN ('reading', 'completed', 'paused')) DEFAULT 'reading',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.books ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own books"
+  ON public.books FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
