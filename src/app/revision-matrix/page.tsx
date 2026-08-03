@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import { RevisionCheckpoints } from '@/types';
 import {
@@ -17,12 +17,10 @@ import {
 } from 'lucide-react';
 
 export default function RevisionMatrixPage() {
-  const {
-    revisionMatrix,
-    toggleRevisionCheckpoint,
-    addRevisionChapter,
-    deleteRevisionChapter,
-  } = useStepwiseStore();
+  const revisionMatrix = useStepwiseStore((s) => s.revisionMatrix);
+  const toggleRevisionCheckpoint = useStepwiseStore((s) => s.toggleRevisionCheckpoint);
+  const addRevisionChapter = useStepwiseStore((s) => s.addRevisionChapter);
+  const deleteRevisionChapter = useStepwiseStore((s) => s.deleteRevisionChapter);
 
   const [activeCategory, setActiveCategory] = useState<
     'gate_cs' | 'gate_da' | 'general_aptitude'
@@ -37,90 +35,131 @@ export default function RevisionMatrixPage() {
   const [newChapter, setNewChapter] = useState('');
 
   // Column definitions matching user's uploaded tracker images
-  const standardColumns: { key: keyof RevisionCheckpoints; label: string }[] = [
-    { key: 'rev1', label: 'REV 1' },
-    { key: 'rev2', label: 'REV 2' },
-    { key: 'rev3', label: 'REV 3' },
-    { key: 'short_notes', label: 'ST NT' },
-    { key: 'dpp', label: 'DPP' },
-    { key: 'weekly_test', label: 'WT' },
-    { key: 'pyq1', label: 'PYQ 1' },
-    { key: 'pyq2', label: 'PYQ 2' },
-    { key: 'topic_test', label: 'TWT' },
-    { key: 'subject_test', label: 'SWT' },
-  ];
+  const standardColumns: { key: keyof RevisionCheckpoints; label: string }[] = useMemo(
+    () => [
+      { key: 'rev1', label: 'REV 1' },
+      { key: 'rev2', label: 'REV 2' },
+      { key: 'rev3', label: 'REV 3' },
+      { key: 'short_notes', label: 'ST NT' },
+      { key: 'dpp', label: 'DPP' },
+      { key: 'weekly_test', label: 'WT' },
+      { key: 'pyq1', label: 'PYQ 1' },
+      { key: 'pyq2', label: 'PYQ 2' },
+      { key: 'topic_test', label: 'TWT' },
+      { key: 'subject_test', label: 'SWT' },
+    ],
+    []
+  );
 
-  const aptitudeColumns: { key: keyof RevisionCheckpoints; label: string }[] = [
-    { key: 'class_problems', label: 'CLASS PROBS' },
-    { key: 'dpp', label: 'DPPS' },
-    { key: 'weekly_test', label: 'WEEKLY TEST' },
-    { key: 'cat_lv1', label: 'CAT LV 1' },
-    { key: 'cat_lv2', label: 'CAT LV 2' },
-    { key: 'mock_test', label: 'MOCK TEST' },
-  ];
+  const aptitudeColumns: { key: keyof RevisionCheckpoints; label: string }[] = useMemo(
+    () => [
+      { key: 'class_problems', label: 'CLASS PROBS' },
+      { key: 'dpp', label: 'DPPS' },
+      { key: 'weekly_test', label: 'WEEKLY TEST' },
+      { key: 'cat_lv1', label: 'CAT LV 1' },
+      { key: 'cat_lv2', label: 'CAT LV 2' },
+      { key: 'mock_test', label: 'MOCK TEST' },
+    ],
+    []
+  );
 
   const currentColumns =
     activeCategory === 'general_aptitude' ? aptitudeColumns : standardColumns;
 
-  // Filter matrix by category
-  const categoryItems = revisionMatrix.filter(
-    (item) => item.category === activeCategory
-  );
+  // Memoize all matrix filtering, grouping, and tallies
+  const {
+    categoryItems,
+    availableSubjects,
+    subjectsMap,
+    totalChapters,
+    totalClearedCheckpoints,
+    totalPossibleCheckpoints,
+    totalPyqCleared,
+    categoryProgressPercent,
+  } = useMemo(() => {
+    const catItems = (revisionMatrix || []).filter(
+      (item) => item.category === activeCategory
+    );
 
-  // Extract unique subjects in current category
-  const availableSubjects = Array.from(
-    new Set(categoryItems.map((item) => item.subject))
-  );
+    const availSubs = Array.from(
+      new Set(catItems.map((item) => item.subject))
+    );
 
-  // Apply search & subject filter
-  const filteredItems = categoryItems.filter((item) => {
-    const matchesSearch =
-      item.chapter.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.subject.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase().trim();
+    const filtered = catItems.filter((item) => {
+      const matchesSearch =
+        !q ||
+        item.chapter.toLowerCase().includes(q) ||
+        item.subject.toLowerCase().includes(q);
 
-    const matchesSubject =
-      selectedSubjectFilter === 'ALL' || item.subject === selectedSubjectFilter;
+      const matchesSubject =
+        selectedSubjectFilter === 'ALL' || item.subject === selectedSubjectFilter;
 
-    return matchesSearch && matchesSubject;
-  });
-
-  // Group filtered items by Subject
-  const subjectsMap: Record<string, typeof filteredItems> = {};
-  filteredItems.forEach((item) => {
-    if (!subjectsMap[item.subject]) subjectsMap[item.subject] = [];
-    subjectsMap[item.subject].push(item);
-  });
-
-  // Summary Metrics
-  const totalChapters = categoryItems.length;
-  let totalPossibleCheckpoints = 0;
-  let totalClearedCheckpoints = 0;
-  let totalPyqCleared = 0;
-
-  categoryItems.forEach((item) => {
-    currentColumns.forEach((col) => {
-      totalPossibleCheckpoints++;
-      if (item.checkpoints[col.key]) {
-        totalClearedCheckpoints++;
-        if (col.key === 'pyq1' || col.key === 'pyq2') totalPyqCleared++;
-      }
+      return matchesSearch && matchesSubject;
     });
-  });
 
-  const categoryProgressPercent =
-    totalPossibleCheckpoints > 0
-      ? Math.round((totalClearedCheckpoints / totalPossibleCheckpoints) * 100)
-      : 0;
+    const sMap: Record<string, typeof filtered> = {};
+    filtered.forEach((item) => {
+      if (!sMap[item.subject]) sMap[item.subject] = [];
+      sMap[item.subject].push(item);
+    });
 
-  const handleAddChapterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSubject.trim() || !newChapter.trim()) return;
+    const totChapters = catItems.length;
+    let possible = 0;
+    let cleared = 0;
+    let pyq = 0;
 
-    addRevisionChapter(activeCategory, newSubject.trim(), newChapter.trim());
-    setNewSubject('');
-    setNewChapter('');
-    setIsAddModalOpen(false);
-  };
+    catItems.forEach((item) => {
+      currentColumns.forEach((col) => {
+        possible++;
+        if (item.checkpoints?.[col.key]) {
+          cleared++;
+          if (col.key === 'pyq1' || col.key === 'pyq2') pyq++;
+        }
+      });
+    });
+
+    const progPercent =
+      possible > 0 ? Math.round((cleared / possible) * 100) : 0;
+
+    return {
+      categoryItems: catItems,
+      availableSubjects: availSubs,
+      subjectsMap: sMap,
+      totalChapters: totChapters,
+      totalClearedCheckpoints: cleared,
+      totalPossibleCheckpoints: possible,
+      totalPyqCleared: pyq,
+      categoryProgressPercent: progPercent,
+    };
+  }, [revisionMatrix, activeCategory, searchQuery, selectedSubjectFilter, currentColumns]);
+
+  const handleToggle = useCallback(
+    (chapterId: string, checkpointKey: keyof RevisionCheckpoints) => {
+      toggleRevisionCheckpoint(chapterId, checkpointKey);
+    },
+    [toggleRevisionCheckpoint]
+  );
+
+  const handleDelete = useCallback(
+    (chapterId: string) => {
+      deleteRevisionChapter(chapterId);
+    },
+    [deleteRevisionChapter]
+  );
+
+  const handleAddChapterSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newSubject.trim() || !newChapter.trim()) return;
+
+      addRevisionChapter(activeCategory, newSubject.trim(), newChapter.trim());
+      setNewSubject('');
+      setNewChapter('');
+      setIsAddModalOpen(false);
+    },
+    [activeCategory, newSubject, newChapter, addRevisionChapter]
+  );
 
   return (
     <div className="space-y-8 pb-12">
@@ -379,7 +418,7 @@ export default function RevisionMatrixPage() {
                               >
                                 <button
                                   onClick={() =>
-                                    toggleRevisionCheckpoint(ch.id, col.key)
+                                    handleToggle(ch.id, col.key)
                                   }
                                   className={`p-1.5 rounded-lg border transition-all inline-flex items-center justify-center ${
                                     isChecked
@@ -400,7 +439,7 @@ export default function RevisionMatrixPage() {
 
                           <td className="py-2.5 px-2 text-center">
                             <button
-                              onClick={() => deleteRevisionChapter(ch.id)}
+                              onClick={() => handleDelete(ch.id)}
                               className="p-1 rounded text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100"
                               title="Delete Chapter"
                             >

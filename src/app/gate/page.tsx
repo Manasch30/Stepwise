@@ -1,35 +1,48 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import { Subject } from '@/types';
-import { Cpu, Brain, Clock, Plus, CheckCircle, Edit2, BookOpen } from 'lucide-react';
+import { Cpu, Brain, Clock, Plus, Edit2 } from 'lucide-react';
 import { QuickAddModal } from '@/components/common/QuickAddModal';
 import { SubjectModal } from '@/components/common/SubjectModal';
 
 export default function GatePage() {
-  const { subjects, getTrackProgress } = useStepwiseStore();
+  const subjects = useStepwiseStore((s) => s.subjects);
+  const getTrackProgress = useStepwiseStore((s) => s.getTrackProgress);
 
   const [activeTrack, setActiveTrack] = useState<'GATE CS' | 'GATE DA'>('GATE CS');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
 
-  const trackSubjects = subjects.filter((s) => s.track === activeTrack);
-  const trackProgress = getTrackProgress(activeTrack);
+  const { trackSubjects, trackProgress, totalTargetHours, totalCompletedHours, csProgress, daProgress } = useMemo(() => {
+    const subs = (subjects || []).filter((s) => s.track === activeTrack);
+    const prog = getTrackProgress(activeTrack);
+    const target = subs.reduce((acc, s) => acc + s.hours_target, 0);
+    const completed = subs.reduce((acc, s) => acc + s.hours_completed, 0);
+    const csProg = getTrackProgress('GATE CS');
+    const daProg = getTrackProgress('GATE DA');
 
-  const totalTargetHours = trackSubjects.reduce((acc, s) => acc + s.hours_target, 0);
-  const totalCompletedHours = trackSubjects.reduce((acc, s) => acc + s.hours_completed, 0);
+    return {
+      trackSubjects: subs,
+      trackProgress: prog,
+      totalTargetHours: target,
+      totalCompletedHours: completed,
+      csProgress: csProg,
+      daProgress: daProg,
+    };
+  }, [subjects, activeTrack, getTrackProgress]);
 
-  const handleOpenNewSubject = () => {
+  const handleOpenNewSubject = useCallback(() => {
     setEditingSubject(null);
     setIsSubjectModalOpen(true);
-  };
+  }, []);
 
-  const handleOpenEditSubject = (sub: Subject) => {
+  const handleOpenEditSubject = useCallback((sub: Subject) => {
     setEditingSubject(sub);
     setIsSubjectModalOpen(true);
-  };
+  }, []);
 
   return (
     <div className="space-y-8 pb-12">
@@ -81,7 +94,7 @@ export default function GatePage() {
             </div>
             <div>
               <h3 className="text-base font-extrabold text-white">GATE CS</h3>
-              <p className="text-xs text-zinc-400">{getTrackProgress('GATE CS')}% Complete</p>
+              <p className="text-xs text-zinc-400">{csProgress}% Complete</p>
             </div>
           </div>
         </button>
@@ -100,7 +113,7 @@ export default function GatePage() {
             </div>
             <div>
               <h3 className="text-base font-extrabold text-white">GATE DA & AI</h3>
-              <p className="text-xs text-zinc-400">{getTrackProgress('GATE DA')}% Complete</p>
+              <p className="text-xs text-zinc-400">{daProgress}% Complete</p>
             </div>
           </div>
         </button>

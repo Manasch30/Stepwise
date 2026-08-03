@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import { JapaneseResource } from '@/types';
 import { Languages, CheckCircle, Plus, Edit2, Trash2 } from 'lucide-react';
@@ -8,29 +8,51 @@ import { QuickAddModal } from '@/components/common/QuickAddModal';
 import { JapaneseResourceModal } from '@/components/common/JapaneseResourceModal';
 
 export default function JapanesePage() {
-  const { japaneseResources, completeJapaneseResource, deleteJapaneseResource } = useStepwiseStore();
+  const japaneseResources = useStepwiseStore((s) => s.japaneseResources);
+  const completeJapaneseResource = useStepwiseStore((s) => s.completeJapaneseResource);
+  const deleteJapaneseResource = useStepwiseStore((s) => s.deleteJapaneseResource);
+
   const [selectedLevel, setSelectedLevel] = useState<'ALL' | 'N5' | 'N4' | 'N3' | 'N2' | 'N1'>('ALL');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<JapaneseResource | null>(null);
 
-  const filteredResources = selectedLevel === 'ALL'
-    ? japaneseResources
-    : japaneseResources.filter((r) => r.level === selectedLevel);
+  const { filteredResources, overallJpProgress } = useMemo(() => {
+    const list = japaneseResources || [];
+    const filtered =
+      selectedLevel === 'ALL'
+        ? list
+        : list.filter((r) => r.level === selectedLevel);
 
-  const totalTarget = japaneseResources.reduce((acc, r) => acc + r.target, 0);
-  const totalCompleted = japaneseResources.reduce((acc, r) => acc + r.completed, 0);
-  const overallJpProgress = totalTarget > 0 ? Math.round((totalCompleted / totalTarget) * 100) : 0;
+    const totalTarget = list.reduce((acc, r) => acc + r.target, 0);
+    const totalCompleted = list.reduce((acc, r) => acc + r.completed, 0);
+    const progress = totalTarget > 0 ? Math.round((totalCompleted / totalTarget) * 100) : 0;
 
-  const handleOpenNewResource = () => {
+    return {
+      filteredResources: filtered,
+      overallJpProgress: progress,
+    };
+  }, [japaneseResources, selectedLevel]);
+
+  const handleOpenNewResource = useCallback(() => {
     setEditingResource(null);
     setIsResourceModalOpen(true);
-  };
+  }, []);
 
-  const handleOpenEditResource = (res: JapaneseResource) => {
+  const handleOpenEditResource = useCallback((res: JapaneseResource) => {
     setEditingResource(res);
     setIsResourceModalOpen(true);
-  };
+  }, []);
+
+  const handleCompleteUnit = useCallback((id: string) => {
+    completeJapaneseResource(id, 1);
+  }, [completeJapaneseResource]);
+
+  const handleDeleteResource = useCallback((id: string, title: string) => {
+    if (confirm(`Remove resource "${title}"?`)) {
+      deleteJapaneseResource(id);
+    }
+  }, [deleteJapaneseResource]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -147,11 +169,7 @@ export default function JapanesePage() {
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm(`Remove resource "${res.title}"?`)) {
-                          deleteJapaneseResource(res.id);
-                        }
-                      }}
+                      onClick={() => handleDeleteResource(res.id, res.title)}
                       className="p-1.5 text-zinc-500 hover:text-rose-400 transition-colors"
                       title="Delete Resource"
                     >
@@ -178,7 +196,7 @@ export default function JapanesePage() {
                 </div>
 
                 <button
-                  onClick={() => completeJapaneseResource(res.id, 1)}
+                  onClick={() => handleCompleteUnit(res.id)}
                   className="w-full py-2.5 rounded-xl bg-pink-600/20 hover:bg-pink-600/40 text-pink-300 text-xs font-bold border border-pink-500/30 transition-all flex items-center justify-center gap-2"
                 >
                   <Plus className="w-3.5 h-3.5" />

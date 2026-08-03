@@ -1,29 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import {
-  Dumbbell,
   Trophy,
   Footprints,
   Flame,
-  Plus,
   TrendingUp,
   Apple,
   Trash2,
-  Sparkles,
   Calendar,
+  Sparkles,
 } from 'lucide-react';
 
 export default function FitnessPage() {
-  const {
-    dailyFitnessLogs,
-    prRecords,
-    logDailyFitness,
-    deleteDailyFitnessLog,
-    addPRRecord,
-    deletePRRecord,
-  } = useStepwiseStore();
+  const dailyFitnessLogs = useStepwiseStore((s) => s.dailyFitnessLogs);
+  const prRecords = useStepwiseStore((s) => s.prRecords);
+  const logDailyFitness = useStepwiseStore((s) => s.logDailyFitness);
+  const deleteDailyFitnessLog = useStepwiseStore((s) => s.deleteDailyFitnessLog);
+  const addPRRecord = useStepwiseStore((s) => s.addPRRecord);
+  const deletePRRecord = useStepwiseStore((s) => s.deletePRRecord);
 
   // Daily Logging Form State
   const [stepsInput, setStepsInput] = useState('10000');
@@ -37,37 +33,62 @@ export default function FitnessPage() {
   const [prReps, setPrReps] = useState('1');
   const [prNotes, setPrNotes] = useState('');
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayLog = dailyFitnessLogs.find((log) => log.date === todayStr) || dailyFitnessLogs[0] || {
-    steps: 10000,
-    calories: 2400,
-    protein: 160,
-  };
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayLog = useMemo(() => {
+    return (
+      (dailyFitnessLogs || []).find((log) => log.date === todayStr) ||
+      (dailyFitnessLogs || [])[0] || {
+        steps: 10000,
+        calories: 2400,
+        protein: 160,
+      }
+    );
+  }, [dailyFitnessLogs, todayStr]);
 
-  const handleDailyFitnessSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const steps = parseInt(stepsInput, 10) || 0;
-    const calories = parseInt(caloriesInput, 10) || 0;
-    const protein = parseInt(proteinInput, 10) || 0;
+  const handleDailyFitnessSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const steps = parseInt(stepsInput, 10) || 0;
+      const calories = parseInt(caloriesInput, 10) || 0;
+      const protein = parseInt(proteinInput, 10) || 0;
 
-    logDailyFitness({ steps, calories, protein });
-  };
+      logDailyFitness({ steps, calories, protein });
+    },
+    [stepsInput, caloriesInput, proteinInput, logDailyFitness]
+  );
 
-  const handlePRSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prExercise.trim() || !prWeight) return;
+  const handlePRSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!prExercise.trim() || !prWeight) return;
 
-    addPRRecord({
-      exercise: prExercise.trim(),
-      weight_kg: parseFloat(prWeight),
-      reps: parseInt(prReps, 10) || 1,
-      notes: prNotes,
-    });
+      addPRRecord({
+        exercise: prExercise.trim(),
+        weight_kg: parseFloat(prWeight),
+        reps: parseInt(prReps, 10) || 1,
+        notes: prNotes,
+      });
 
-    setPrWeight('');
-    setPrNotes('');
-    setIsPRModalOpen(false);
-  };
+      setPrWeight('');
+      setPrNotes('');
+      setIsPRModalOpen(false);
+    },
+    [prExercise, prWeight, prReps, prNotes, addPRRecord]
+  );
+
+  const handleDeleteFitnessLog = useCallback(
+    (id: string) => {
+      deleteDailyFitnessLog(id);
+    },
+    [deleteDailyFitnessLog]
+  );
+
+  const handleDeletePR = useCallback(
+    (id: string) => {
+      deletePRRecord(id);
+    },
+    [deletePRRecord]
+  );
 
   return (
     <div className="space-y-8 pb-12">
@@ -231,7 +252,7 @@ export default function FitnessPage() {
                 </div>
 
                 <button
-                  onClick={() => deletePRRecord(pr.id)}
+                  onClick={() => handleDeletePR(pr.id)}
                   className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100"
                   title="Delete PR"
                 >
@@ -281,7 +302,7 @@ export default function FitnessPage() {
                   <td className="py-3 px-2 text-emerald-400 font-bold">{log.protein} g</td>
                   <td className="py-3 px-2 text-right">
                     <button
-                      onClick={() => deleteDailyFitnessLog(log.id)}
+                      onClick={() => handleDeleteFitnessLog(log.id)}
                       title="Delete log entry & deduct XP"
                       className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-80 group-hover:opacity-100"
                     >

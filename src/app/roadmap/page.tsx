@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import { RoadmapModal } from '@/components/common/RoadmapModal';
 import { motion } from 'framer-motion';
@@ -16,12 +16,10 @@ import {
 } from 'lucide-react';
 
 export default function RoadmapPage() {
-  const {
-    roadmap,
-    addRoadmapGoal,
-    toggleRoadmapGoal,
-    deleteRoadmapGoal,
-  } = useStepwiseStore();
+  const roadmap = useStepwiseStore((s) => s.roadmap);
+  const addRoadmapGoal = useStepwiseStore((s) => s.addRoadmapGoal);
+  const toggleRoadmapGoal = useStepwiseStore((s) => s.toggleRoadmapGoal);
+  const deleteRoadmapGoal = useStepwiseStore((s) => s.deleteRoadmapGoal);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalDefaultMonth, setModalDefaultMonth] = useState('August 2026');
@@ -30,13 +28,13 @@ export default function RoadmapPage() {
   // Quick inline input state: `${month}_week${weekNum}` -> string
   const [quickInputs, setQuickInputs] = useState<Record<string, string>>({});
 
-  const handleOpenModal = (month: string, weekNum: number) => {
+  const handleOpenModal = useCallback((month: string, weekNum: number) => {
     setModalDefaultMonth(month);
     setModalDefaultWeek(weekNum);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleAddQuickTask = (month: string, weekNum: number) => {
+  const handleAddQuickTask = useCallback((month: string, weekNum: number) => {
     const key = `${month}_week${weekNum}`;
     const text = quickInputs[key]?.trim();
     if (!text) return;
@@ -49,18 +47,28 @@ export default function RoadmapPage() {
     });
 
     setQuickInputs((prev) => ({ ...prev, [key]: '' }));
-  };
+  }, [quickInputs, addRoadmapGoal]);
+
+  const handleToggle = useCallback((id: string) => {
+    toggleRoadmapGoal(id);
+  }, [toggleRoadmapGoal]);
+
+  const handleDelete = useCallback((id: string) => {
+    deleteRoadmapGoal(id);
+  }, [deleteRoadmapGoal]);
 
   // Extract unique months from store + defaults
-  const uniqueMonths = Array.from(new Set(roadmap.map((r) => r.month)));
-  const defaultMonths = [
-    'August 2026',
-    'September 2026',
-    'October 2026',
-    'November 2026',
-    'December 2026',
-  ];
-  const allMonths = Array.from(new Set([...defaultMonths, ...uniqueMonths]));
+  const allMonths = useMemo(() => {
+    const uniqueMonths = Array.from(new Set((roadmap || []).map((r) => r.month)));
+    const defaultMonths = [
+      'August 2026',
+      'September 2026',
+      'October 2026',
+      'November 2026',
+      'December 2026',
+    ];
+    return Array.from(new Set([...defaultMonths, ...uniqueMonths]));
+  }, [roadmap]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -180,7 +188,7 @@ export default function RoadmapPage() {
                               className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950/70 border border-white/5 hover:border-white/20 transition-all group"
                             >
                               <button
-                                onClick={() => toggleRoadmapGoal(g.id)}
+                                onClick={() => handleToggle(g.id)}
                                 className="flex items-center gap-2.5 text-left w-full mr-2"
                               >
                                 {g.completed ? (
@@ -211,7 +219,7 @@ export default function RoadmapPage() {
                               </button>
 
                               <button
-                                onClick={() => deleteRoadmapGoal(g.id)}
+                                onClick={() => handleDelete(g.id)}
                                 className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
                                 title="Delete Goal"
                               >

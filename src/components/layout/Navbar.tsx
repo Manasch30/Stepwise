@@ -14,7 +14,8 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDrawer }) => {
-  const { userStats, resetToDefaults } = useStepwiseStore();
+  const userStats = useStepwiseStore((s) => s.userStats);
+  const resetToDefaults = useStepwiseStore((s) => s.resetToDefaults);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {

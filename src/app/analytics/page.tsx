@@ -1,13 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import {
   BarChart3,
   Calendar,
   TrendingUp,
   Clock,
-  Zap,
   Trash2,
 } from 'lucide-react';
 import {
@@ -20,87 +19,112 @@ import {
 } from 'recharts';
 
 export default function AnalyticsPage() {
-  const { lectureLogs, subjects, japaneseResources, deleteLectureLog } = useStepwiseStore();
+  const lectureLogs = useStepwiseStore((s) => s.lectureLogs);
+  const subjects = useStepwiseStore((s) => s.subjects);
+  const deleteLectureLog = useStepwiseStore((s) => s.deleteLectureLog);
 
-  // Helper to format Date string as YYYY-MM-DD
-  const formatDateStr = (date: Date) => date.toISOString().split('T')[0];
+  const handleDelete = useCallback((id: string) => {
+    deleteLectureLog(id);
+  }, [deleteLectureLog]);
 
-  // Map of date string -> total study hours logged
-  const dailyHoursMap: Record<string, { gate: number; japanese: number; total: number }> = {};
+  // Memoized analytics calculations
+  const {
+    heatmapDays,
+    weeklyData,
+    avgDailyHours,
+    remainingGateHours,
+    estimatedCompletionDate,
+    daysToComplete,
+  } = useMemo(() => {
+    const formatDateStr = (date: Date) => date.toISOString().split('T')[0];
 
-  lectureLogs.forEach((log) => {
-    const d = log.date;
-    if (!dailyHoursMap[d]) {
-      dailyHoursMap[d] = { gate: 0, japanese: 0, total: 0 };
-    }
-    const sub = subjects.find((s) => s.id === log.subject_id);
-    if (sub?.track === 'Japanese') {
-      dailyHoursMap[d].japanese += log.hours;
-    } else {
-      dailyHoursMap[d].gate += log.hours;
-    }
-    dailyHoursMap[d].total += log.hours;
-  });
+    // Map of date string -> total study hours logged
+    const dailyHoursMap: Record<string, { gate: number; japanese: number; total: number }> = {};
 
-  // Generate 91 days (13 weeks) for Heatmap Grid
-  const today = new Date();
-  const heatmapDays = Array.from({ length: 91 }).map((_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (90 - i));
-    const dateStr = formatDateStr(d);
-    const dayData = dailyHoursMap[dateStr] || { gate: 0, japanese: 0, total: 0 };
-
-    let intensity = 0;
-    if (dayData.total > 0 && dayData.total < 2) intensity = 1;
-    else if (dayData.total >= 2 && dayData.total < 4) intensity = 2;
-    else if (dayData.total >= 4 && dayData.total < 6) intensity = 3;
-    else if (dayData.total >= 6) intensity = 4;
-
-    return {
-      dateStr,
-      displayDate: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      hours: dayData.total,
-      intensity,
-    };
-  });
-
-  // Calculate Weekly Data for Mon-Sun of current week
-  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const currentDayIndex = (today.getDay() + 6) % 7; // Mon=0, Sun=6
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - currentDayIndex);
-
-  const weeklyData = daysOfWeek.map((dayName, idx) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + idx);
-    const dateStr = formatDateStr(d);
-    const data = dailyHoursMap[dateStr] || { gate: 0, japanese: 0, total: 0 };
-    return {
-      day: dayName,
-      hours: data.total,
-      gate: data.gate,
-      japanese: data.japanese,
-    };
-  });
-
-  // Rolling Average Daily Hours over last 7 days
-  const last7DaysTotal = heatmapDays.slice(-7).reduce((acc, d) => acc + d.hours, 0);
-  const avgDailyHours = Number((last7DaysTotal / 7).toFixed(1));
-
-  // Velocity prediction
-  const remainingGateHours = subjects.reduce((acc, s) => acc + (s.hours_target - s.hours_completed), 0);
-  
-  let estimatedCompletionDate = 'December 2026';
-  let daysToComplete: number | string = 'N/A';
-
-  if (avgDailyHours > 0) {
-    const days = Math.ceil(remainingGateHours / avgDailyHours);
-    daysToComplete = days;
-    estimatedCompletionDate = new Date(Date.now() + days * 86400000).toLocaleDateString('en-US', {
-      month: 'short',
-      year: 'numeric',
+    (lectureLogs || []).forEach((log) => {
+      const d = log.date;
+      if (!dailyHoursMap[d]) {
+        dailyHoursMap[d] = { gate: 0, japanese: 0, total: 0 };
+      }
+      const sub = (subjects || []).find((s) => s.id === log.subject_id);
+      if (sub?.track === 'Japanese') {
+        dailyHoursMap[d].japanese += log.hours;
+      } else {
+        dailyHoursMap[d].gate += log.hours;
+      }
+      dailyHoursMap[d].total += log.hours;
     });
-  }
+
+    // Generate 91 days (13 weeks) for Heatmap Grid
+    const today = new Date();
+    const heatmap = Array.from({ length: 91 }).map((_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - (90 - i));
+      const dateStr = formatDateStr(d);
+      const dayData = dailyHoursMap[dateStr] || { gate: 0, japanese: 0, total: 0 };
+
+      let intensity = 0;
+      if (dayData.total > 0 && dayData.total < 2) intensity = 1;
+      else if (dayData.total >= 2 && dayData.total < 4) intensity = 2;
+      else if (dayData.total >= 4 && dayData.total < 6) intensity = 3;
+      else if (dayData.total >= 6) intensity = 4;
+
+      return {
+        dateStr,
+        displayDate: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        hours: dayData.total,
+        intensity,
+      };
+    });
+
+    // Calculate Weekly Data for Mon-Sun of current week
+    const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const currentDayIndex = (today.getDay() + 6) % 7; // Mon=0, Sun=6
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - currentDayIndex);
+
+    const weekly = daysOfWeek.map((dayName, idx) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + idx);
+      const dateStr = formatDateStr(d);
+      const data = dailyHoursMap[dateStr] || { gate: 0, japanese: 0, total: 0 };
+      return {
+        day: dayName,
+        hours: data.total,
+        gate: data.gate,
+        japanese: data.japanese,
+      };
+    });
+
+    // Rolling Average Daily Hours over last 7 days
+    const last7DaysTotal = heatmap.slice(-7).reduce((acc, d) => acc + d.hours, 0);
+    const avgHours = Number((last7DaysTotal / 7).toFixed(1));
+
+    // Velocity prediction
+    const remGateHours = (subjects || []).reduce((acc, s) => acc + (s.hours_target - s.hours_completed), 0);
+    
+    let estDate = 'December 2026';
+    let daysRemain: number | string = 'N/A';
+
+    if (avgHours > 0) {
+      const days = Math.ceil(remGateHours / avgHours);
+      daysRemain = days;
+      estDate = new Date(Date.now() + days * 86400000).toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric',
+      });
+    }
+
+    return {
+      dailyHoursMap,
+      heatmapDays: heatmap,
+      weeklyData: weekly,
+      avgDailyHours: avgHours,
+      remainingGateHours: remGateHours,
+      estimatedCompletionDate: estDate,
+      daysToComplete: daysRemain,
+    };
+  }, [lectureLogs, subjects]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -270,7 +294,7 @@ export default function AnalyticsPage() {
                     )}
                   </div>
                   <button
-                    onClick={() => deleteLectureLog(log.id)}
+                    onClick={() => handleDelete(log.id)}
                     title="Delete session & deduct XP"
                     className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all opacity-80 group-hover:opacity-100"
                   >

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import { Goal } from '@/types';
 import { motion } from 'framer-motion';
@@ -21,31 +21,40 @@ import Link from 'next/link';
 import { GoalModal } from '@/components/common/GoalModal';
 
 export default function DashboardPage() {
-  const {
-    userStats,
-    goals,
-    subjects,
-    lectureLogs,
-    recentEvents,
-    getOverallProgress,
-    getTrackProgress,
-  } = useStepwiseStore();
+  const userStats = useStepwiseStore((s) => s.userStats);
+  const goals = useStepwiseStore((s) => s.goals);
+  const subjects = useStepwiseStore((s) => s.subjects);
+  const lectureLogs = useStepwiseStore((s) => s.lectureLogs);
+  const recentEvents = useStepwiseStore((s) => s.recentEvents);
+  const getOverallProgress = useStepwiseStore((s) => s.getOverallProgress);
+  const getTrackProgress = useStepwiseStore((s) => s.getTrackProgress);
 
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
 
-  const overallProgress = getOverallProgress();
-  const totalStudyHours = lectureLogs.reduce((acc, log) => acc + log.hours, 0);
+  const { overallProgress, totalStudyHours, gateCsProgress, japaneseProgress } = useMemo(() => {
+    const overall = getOverallProgress();
+    const totalHours = (lectureLogs || []).reduce((acc, log) => acc + log.hours, 0);
+    const csProg = getTrackProgress('GATE CS');
+    const jpProg = getTrackProgress('Japanese');
 
-  const handleOpenNewGoal = () => {
+    return {
+      overallProgress: overall,
+      totalStudyHours: totalHours,
+      gateCsProgress: csProg,
+      japaneseProgress: jpProg,
+    };
+  }, [lectureLogs, getOverallProgress, getTrackProgress]);
+
+  const handleOpenNewGoal = useCallback(() => {
     setEditingGoal(null);
     setIsGoalModalOpen(true);
-  };
+  }, []);
 
-  const handleOpenEditGoal = (goal: Goal) => {
+  const handleOpenEditGoal = useCallback((goal: Goal) => {
     setEditingGoal(goal);
     setIsGoalModalOpen(true);
-  };
+  }, []);
 
   return (
     <div className="space-y-8 pb-12">
@@ -136,11 +145,11 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-3xl font-black text-white">{getTrackProgress('GATE CS')}%</div>
+            <div className="text-3xl font-black text-white">{gateCsProgress}%</div>
             <div className="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-700"
-                style={{ width: `${getTrackProgress('GATE CS')}%` }}
+                style={{ width: `${gateCsProgress}%` }}
               />
             </div>
             <p className="text-[10px] text-zinc-400 mt-2">11 Core Subjects Tracked</p>
@@ -159,11 +168,11 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-3xl font-black text-white">{getTrackProgress('Japanese')}%</div>
+            <div className="text-3xl font-black text-white">{japaneseProgress}%</div>
             <div className="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-700"
-                style={{ width: `${getTrackProgress('Japanese')}%` }}
+                style={{ width: `${japaneseProgress}%` }}
               />
             </div>
             <p className="text-[10px] text-zinc-400 mt-2">Derived from completed resources</p>

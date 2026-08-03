@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -37,8 +37,9 @@ interface MobileNavDrawerProps {
 
 export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
-  const { userStats, getOverallProgress } = useStepwiseStore();
-  const overallProgress = getOverallProgress();
+  const userStats = useStepwiseStore((s) => s.userStats);
+  const getOverallProgress = useStepwiseStore((s) => s.getOverallProgress);
+  const overallProgress = useMemo(() => getOverallProgress(), [getOverallProgress]);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');

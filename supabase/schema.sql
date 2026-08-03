@@ -258,3 +258,19 @@ CREATE POLICY "Users manage own books"
   ON public.books FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+
+-- ========================================================
+-- 12. HIGH-PERFORMANCE COMPOSITE INDEXES
+-- ========================================================
+CREATE INDEX IF NOT EXISTS idx_lecture_logs_user_date ON public.lecture_logs (user_id, date DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_fitness_logs_user_date ON public.daily_fitness_logs (user_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_revision_matrix_user_subj ON public.revision_matrix (user_id, subject);
+CREATE INDEX IF NOT EXISTS idx_books_user_status ON public.books (user_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subjects_user_track ON public.subjects (user_id, track);
+CREATE INDEX IF NOT EXISTS idx_japanese_resources_user_level ON public.japanese_resources (user_id, level);
+CREATE INDEX IF NOT EXISTS idx_projects_user_cat ON public.projects (user_id, category);
+CREATE INDEX IF NOT EXISTS idx_pr_records_user_date ON public.pr_records (user_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_roadmap_user_month ON public.roadmap (user_id, month, week_number);
+CREATE INDEX IF NOT EXISTS idx_tech_stack_user ON public.tech_stack (user_id);
+

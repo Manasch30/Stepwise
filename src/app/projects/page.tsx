@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import {
   Code,
@@ -23,18 +23,13 @@ import {
 import { ProjectItem, TechStackItem } from '@/types';
 
 export default function ProjectsPage() {
-  const {
-    projects = [],
-    techStack = [],
-    updateProject,
-    addProject,
-    deleteProject,
-    addTechStackItem,
-    deleteTechStackItem,
-  } = useStepwiseStore();
-
-  const safeProjects = Array.isArray(projects) ? projects : [];
-  const safeTechStack = Array.isArray(techStack) ? techStack : [];
+  const projects = useStepwiseStore((s) => s.projects);
+  const techStack = useStepwiseStore((s) => s.techStack);
+  const updateProject = useStepwiseStore((s) => s.updateProject);
+  const addProject = useStepwiseStore((s) => s.addProject);
+  const deleteProject = useStepwiseStore((s) => s.deleteProject);
+  const addTechStackItem = useStepwiseStore((s) => s.addTechStackItem);
+  const deleteTechStackItem = useStepwiseStore((s) => s.deleteTechStackItem);
 
   // Category Filters
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -60,67 +55,111 @@ export default function ProjectsPage() {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editProgressValue, setEditProgressValue] = useState<number>(50);
 
-  const categories = ['All', 'Web App', 'Desktop Tool', 'AI / ML', 'Systems', 'Other'];
+  const categories = useMemo(
+    () => ['All', 'Web App', 'Desktop Tool', 'AI / ML', 'Systems', 'Other'],
+    []
+  );
 
-  const filteredProjects = selectedCategory === 'All'
-    ? safeProjects
-    : safeProjects.filter((p) => (p.category || 'Web App') === selectedCategory);
+  const { safeTechStack, filteredProjects, activeProjectsCount, completedProjectsCount, avgProgress } = useMemo(() => {
+    const pList = Array.isArray(projects) ? projects : [];
+    const tList = Array.isArray(techStack) ? techStack : [];
 
-  const activeProjectsCount = safeProjects.filter((p) => p.status === 'in_progress').length;
-  const completedProjectsCount = safeProjects.filter((p) => p.status === 'completed').length;
-  const avgProgress = safeProjects.length > 0
-    ? Math.round(safeProjects.reduce((acc, p) => acc + (p.progress || 0), 0) / safeProjects.length)
-    : 0;
+    const filtered =
+      selectedCategory === 'All'
+        ? pList
+        : pList.filter((p) => (p.category || 'Web App') === selectedCategory);
 
-  const handleAddProjectSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+    const activeCount = pList.filter((p) => p.status === 'in_progress').length;
+    const completedCount = pList.filter((p) => p.status === 'completed').length;
+    const avg =
+      pList.length > 0
+        ? Math.round(
+            pList.reduce((acc, p) => acc + (p.progress || 0), 0) / pList.length
+          )
+        : 0;
 
-    const stack = techStackInput
-      ? techStackInput.split(',').map((s) => s.trim()).filter(Boolean)
-      : ['TypeScript'];
+    return {
+      safeProjects: pList,
+      safeTechStack: tList,
+      filteredProjects: filtered,
+      activeProjectsCount: activeCount,
+      completedProjectsCount: completedCount,
+      avgProgress: avg,
+    };
+  }, [projects, techStack, selectedCategory]);
 
-    addProject({
-      title: title.trim(),
-      description: description.trim(),
-      category,
-      progress: parseInt(progress, 10) || 0,
-      github: github.trim() || undefined,
-      tech_stack: stack,
-      status,
-    });
+  const handleAddProjectSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!title.trim()) return;
 
-    setTitle('');
-    setDescription('');
-    setGithub('');
-    setTechStackInput('');
-    setIsAddProjectOpen(false);
-  };
+      const stack = techStackInput
+        ? techStackInput.split(',').map((s) => s.trim()).filter(Boolean)
+        : ['TypeScript'];
 
-  const handleAddTechSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!techName.trim()) return;
+      addProject({
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        progress: parseInt(progress, 10) || 0,
+        github: github.trim() || undefined,
+        tech_stack: stack,
+        status,
+      });
 
-    addTechStackItem({
-      name: techName.trim(),
-      category: techCategory,
-      proficiency,
-      notes: techNotes.trim() || undefined,
-    });
+      setTitle('');
+      setDescription('');
+      setGithub('');
+      setTechStackInput('');
+      setIsAddProjectOpen(false);
+    },
+    [title, description, category, progress, github, techStackInput, status, addProject]
+  );
 
-    setTechName('');
-    setTechNotes('');
-    setIsAddTechOpen(false);
-  };
+  const handleAddTechSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!techName.trim()) return;
 
-  const handleUpdateProgressSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProjectId) return;
-    updateProject(editingProjectId, editProgressValue);
-    setEditingProjectId(null);
-  };
+      addTechStackItem({
+        name: techName.trim(),
+        category: techCategory,
+        proficiency,
+        notes: techNotes.trim() || undefined,
+      });
 
-  const getTechIcon = (cat: TechStackItem['category']) => {
+      setTechName('');
+      setTechNotes('');
+      setIsAddTechOpen(false);
+    },
+    [techName, techCategory, proficiency, techNotes, addTechStackItem]
+  );
+
+  const handleUpdateProgressSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editingProjectId) return;
+      updateProject(editingProjectId, editProgressValue);
+      setEditingProjectId(null);
+    },
+    [editingProjectId, editProgressValue, updateProject]
+  );
+
+  const handleDeleteProj = useCallback(
+    (id: string) => {
+      deleteProject(id);
+    },
+    [deleteProject]
+  );
+
+  const handleDeleteTech = useCallback(
+    (id: string) => {
+      deleteTechStackItem(id);
+    },
+    [deleteTechStackItem]
+  );
+
+  const getTechIcon = useCallback((cat: TechStackItem['category']) => {
     switch (cat) {
       case 'Frontend & UI': return <Layout className="w-4 h-4 text-blue-400" />;
       case 'Backend & Databases': return <Server className="w-4 h-4 text-emerald-400" />;
@@ -128,7 +167,7 @@ export default function ProjectsPage() {
       case 'AI & Data Science': return <Brain className="w-4 h-4 text-purple-400" />;
       default: return <Wrench className="w-4 h-4 text-pink-400" />;
     }
-  };
+  }, []);
 
   return (
     <div className="space-y-8 pb-12">
@@ -275,7 +314,7 @@ export default function ProjectsPage() {
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => deleteProject(project.id)}
+                    onClick={() => handleDeleteProj(project.id)}
                     className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-white/5 transition-colors"
                     title="Delete Project"
                   >
@@ -397,7 +436,7 @@ export default function ProjectsPage() {
                 </div>
 
                 <button
-                  onClick={() => deleteTechStackItem(tech.id)}
+                  onClick={() => handleDeleteTech(tech.id)}
                   className="text-zinc-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
                   title="Delete"
                 >

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import {
   BookOpen,
@@ -16,14 +16,10 @@ import {
 import { Book } from '@/types';
 
 export default function BooksPage() {
-  const {
-    books = [],
-    addBook,
-    updateBookPages,
-    deleteBook,
-  } = useStepwiseStore();
-
-  const safeBooks = Array.isArray(books) ? books : [];
+  const books = useStepwiseStore((s) => s.books);
+  const addBook = useStepwiseStore((s) => s.addBook);
+  const updateBookPages = useStepwiseStore((s) => s.updateBookPages);
+  const deleteBook = useStepwiseStore((s) => s.deleteBook);
 
   // Category filter state
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -41,58 +37,84 @@ export default function BooksPage() {
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [progressPageValue, setProgressPageValue] = useState<number>(0);
 
-  const categories = [
-    'All',
-    'Non-Fiction',
-    'Fiction',
-    'Technical / CS',
-    'Self Improvement',
-    'Manga / Light Novel',
-    'Other',
-  ];
+  const categories = useMemo(
+    () => [
+      'All',
+      'Non-Fiction',
+      'Fiction',
+      'Technical / CS',
+      'Self Improvement',
+      'Manga / Light Novel',
+      'Other',
+    ],
+    []
+  );
 
-  const filteredBooks =
-    selectedCategory === 'All'
-      ? safeBooks
-      : safeBooks.filter((b) => b.category === selectedCategory);
+  const { filteredBooks, totalBooks, currentlyReadingCount, completedBooksCount, totalPagesRead } = useMemo(() => {
+    const list = Array.isArray(books) ? books : [];
+    const filtered =
+      selectedCategory === 'All'
+        ? list
+        : list.filter((b) => b.category === selectedCategory);
 
-  // Statistics
-  const totalBooks = safeBooks.length;
-  const currentlyReadingCount = safeBooks.filter((b) => b.status === 'reading').length;
-  const completedBooksCount = safeBooks.filter((b) => b.status === 'completed').length;
-  const totalPagesRead = safeBooks.reduce((acc, b) => acc + (b.completed_pages || 0), 0);
+    const total = list.length;
+    const reading = list.filter((b) => b.status === 'reading').length;
+    const completed = list.filter((b) => b.status === 'completed').length;
+    const pagesRead = list.reduce((acc, b) => acc + (b.completed_pages || 0), 0);
 
-  const handleAddBookSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+    return {
+      filteredBooks: filtered,
+      totalBooks: total,
+      currentlyReadingCount: reading,
+      completedBooksCount: completed,
+      totalPagesRead: pagesRead,
+    };
+  }, [books, selectedCategory]);
 
-    const total = parseInt(totalPages, 10) || 100;
-    const completed = Math.min(total, parseInt(initialPages, 10) || 0);
+  const handleAddBookSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!title.trim()) return;
 
-    addBook({
-      title: title.trim(),
-      author: author.trim() || 'Unknown Author',
-      category,
-      total_pages: total,
-      completed_pages: completed,
-      status: completed >= total ? 'completed' : 'reading',
-      notes: notes.trim() || undefined,
-    });
+      const total = parseInt(totalPages, 10) || 100;
+      const completed = Math.min(total, parseInt(initialPages, 10) || 0);
 
-    setTitle('');
-    setAuthor('');
-    setTotalPages('250');
-    setInitialPages('0');
-    setNotes('');
-    setIsAddBookOpen(false);
-  };
+      addBook({
+        title: title.trim(),
+        author: author.trim() || 'Unknown Author',
+        category,
+        total_pages: total,
+        completed_pages: completed,
+        status: completed >= total ? 'completed' : 'reading',
+        notes: notes.trim() || undefined,
+      });
 
-  const handleUpdatePagesSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingBook) return;
-    updateBookPages(editingBook.id, progressPageValue);
-    setEditingBook(null);
-  };
+      setTitle('');
+      setAuthor('');
+      setTotalPages('250');
+      setInitialPages('0');
+      setNotes('');
+      setIsAddBookOpen(false);
+    },
+    [title, author, category, totalPages, initialPages, notes, addBook]
+  );
+
+  const handleUpdatePagesSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editingBook) return;
+      updateBookPages(editingBook.id, progressPageValue);
+      setEditingBook(null);
+    },
+    [editingBook, progressPageValue, updateBookPages]
+  );
+
+  const handleDeleteBook = useCallback(
+    (id: string) => {
+      deleteBook(id);
+    },
+    [deleteBook]
+  );
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-8 max-w-7xl mx-auto">
@@ -226,7 +248,7 @@ export default function BooksPage() {
                         {isFinished ? 'Completed' : book.status}
                       </span>
                       <button
-                        onClick={() => deleteBook(book.id)}
+                        onClick={() => handleDeleteBook(book.id)}
                         className="p-1.5 rounded-lg bg-red-500/10 text-red-400 opacity-70 group-hover:opacity-100 hover:bg-red-500/20 transition-all"
                         title="Delete Book (-30 XP)"
                       >

@@ -1268,6 +1268,24 @@ export const useStepwiseStore = create<StepwiseState>()(
     }),
     {
       name: 'stepwise-storage-v9',
+      partialize: (state) => ({
+        userStats: state.userStats,
+        goals: state.goals,
+        subjects: state.subjects,
+        topics: state.topics,
+        lectureLogs: state.lectureLogs,
+        dailyFitnessLogs: state.dailyFitnessLogs,
+        prRecords: state.prRecords,
+        japaneseResources: state.japaneseResources,
+        weeklyReviews: state.weeklyReviews,
+        projects: state.projects,
+        techStack: state.techStack,
+        roadmap: state.roadmap,
+        revisionMatrix: state.revisionMatrix,
+        books: state.books,
+        achievements: state.achievements,
+        recentEvents: (state.recentEvents || []).slice(0, 50),
+      }),
     }
   )
 );

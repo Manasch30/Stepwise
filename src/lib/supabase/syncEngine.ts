@@ -96,12 +96,39 @@ export async function initializeCloudSync() {
     }
   });
 
-  // Subscribe to Zustand store changes to automatically push to Supabase
+  // Dirty table tracking for delta syncing
+  const dirtyTables = new Set<string>();
+  let previousSyncState: ReturnType<typeof useStepwiseStore.getState> | null = null;
+
+  // Subscribe to Zustand store changes to automatically push only modified tables to Supabase
   useStepwiseStore.subscribe((state) => {
+    if (!previousSyncState) {
+      previousSyncState = state;
+      return;
+    }
+
+    if (state.userStats !== previousSyncState.userStats) dirtyTables.add('profiles');
+    if (state.projects !== previousSyncState.projects) dirtyTables.add('projects');
+    if (state.techStack !== previousSyncState.techStack) dirtyTables.add('tech_stack');
+    if (state.subjects !== previousSyncState.subjects) dirtyTables.add('subjects');
+    if (state.revisionMatrix !== previousSyncState.revisionMatrix) dirtyTables.add('revision_matrix');
+    if (state.japaneseResources !== previousSyncState.japaneseResources) dirtyTables.add('japanese_resources');
+    if (state.dailyFitnessLogs !== previousSyncState.dailyFitnessLogs) dirtyTables.add('daily_fitness_logs');
+    if (state.prRecords !== previousSyncState.prRecords) dirtyTables.add('pr_records');
+    if (state.lectureLogs !== previousSyncState.lectureLogs) dirtyTables.add('lecture_logs');
+    if (state.roadmap !== previousSyncState.roadmap) dirtyTables.add('roadmap');
+    if (state.books !== previousSyncState.books) dirtyTables.add('books');
+
+    previousSyncState = state;
+
+    if (dirtyTables.size === 0) return;
+
     if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
     syncDebounceTimer = setTimeout(() => {
-      syncCurrentStateToCloud(state);
-    }, 1200);
+      const tablesToSync = new Set(dirtyTables);
+      dirtyTables.clear();
+      syncCurrentStateToCloud(state, tablesToSync);
+    }, 1500);
   });
 }
 
@@ -378,7 +405,8 @@ export async function fetchAndHydrateUserData(userId: string) {
 }
 
 export async function syncCurrentStateToCloud(
-  state: ReturnType<typeof useStepwiseStore.getState>
+  state: ReturnType<typeof useStepwiseStore.getState>,
+  targetTables?: Set<string> | string[]
 ): Promise<string[]> {
   const supabase = createClient();
   const {
@@ -391,23 +419,33 @@ export async function syncCurrentStateToCloud(
   lastLocalWriteTimestamp = Date.now();
   const syncErrors: string[] = [];
 
+  const targetSet = targetTables
+    ? targetTables instanceof Set
+      ? targetTables
+      : new Set(targetTables)
+    : null;
+
+  const shouldSync = (tableName: string) => !targetSet || targetSet.has(tableName);
+
   try {
     // 1. Sync User Stats Profile
-    const { error: profileErr } = await supabase.from('profiles').upsert({
-      id: userId,
-      email: user.email,
-      level: state.userStats.level,
-      xp: state.userStats.xp,
-      streak: state.userStats.streak,
-      updated_at: new Date().toISOString(),
-    });
-    if (profileErr) {
-      console.error('[Supabase Push] Profile error:', profileErr.message);
-      syncErrors.push(`profiles: ${profileErr.message}`);
+    if (shouldSync('profiles')) {
+      const { error: profileErr } = await supabase.from('profiles').upsert({
+        id: userId,
+        email: user.email,
+        level: state.userStats.level,
+        xp: state.userStats.xp,
+        streak: state.userStats.streak,
+        updated_at: new Date().toISOString(),
+      });
+      if (profileErr) {
+        console.error('[Supabase Push] Profile error:', profileErr.message);
+        syncErrors.push(`profiles: ${profileErr.message}`);
+      }
     }
 
     // 2. Sync Projects
-    if (state.projects?.length) {
+    if (shouldSync('projects') && state.projects?.length) {
       const projectPayloads = state.projects.map((p) => ({
         id: p.id,
         user_id: userId,
@@ -428,7 +466,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 3. Sync Tech Stack
-    if (state.techStack?.length) {
+    if (shouldSync('tech_stack') && state.techStack?.length) {
       const techPayloads = state.techStack.map((t) => ({
         id: t.id,
         user_id: userId,
@@ -445,7 +483,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 4. Sync Subjects
-    if (state.subjects?.length) {
+    if (shouldSync('subjects') && state.subjects?.length) {
       const subjectPayloads = state.subjects.map((s) => ({
         id: s.id,
         user_id: userId,
@@ -462,7 +500,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 5. Sync Revision Matrix
-    if (state.revisionMatrix?.length) {
+    if (shouldSync('revision_matrix') && state.revisionMatrix?.length) {
       const revisionPayloads = state.revisionMatrix.map((r) => ({
         id: r.id,
         user_id: userId,
@@ -483,7 +521,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 6. Sync Japanese Resources
-    if (state.japaneseResources?.length) {
+    if (shouldSync('japanese_resources') && state.japaneseResources?.length) {
       const jpPayloads = state.japaneseResources.map((j) => ({
         id: j.id,
         user_id: userId,
@@ -502,7 +540,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 7. Sync Daily Fitness Logs
-    if (state.dailyFitnessLogs?.length) {
+    if (shouldSync('daily_fitness_logs') && state.dailyFitnessLogs?.length) {
       const fitnessPayloads = state.dailyFitnessLogs.map((f) => ({
         id: f.id,
         user_id: userId,
@@ -519,7 +557,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 8. Sync PR Records
-    if (state.prRecords?.length) {
+    if (shouldSync('pr_records') && state.prRecords?.length) {
       const prPayloads = state.prRecords.map((pr) => ({
         id: pr.id,
         user_id: userId,
@@ -537,7 +575,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 9. Sync Lecture Logs
-    if (state.lectureLogs?.length) {
+    if (shouldSync('lecture_logs') && state.lectureLogs?.length) {
       const logPayloads = state.lectureLogs.map((l) => ({
         id: l.id,
         user_id: userId,
@@ -554,7 +592,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 10. Sync Roadmap Goals
-    if (state.roadmap?.length) {
+    if (shouldSync('roadmap') && state.roadmap?.length) {
       const roadmapPayloads = state.roadmap.map((r) => ({
         id: r.id,
         user_id: userId,
@@ -572,7 +610,7 @@ export async function syncCurrentStateToCloud(
     }
 
     // 11. Sync Books
-    if (state.books?.length) {
+    if (shouldSync('books') && state.books?.length) {
       const bookPayloads = state.books.map((b) => ({
         id: b.id,
         user_id: userId,

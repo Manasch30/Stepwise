@@ -1,20 +1,29 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
-import { Trophy, Zap, Award, Flame, Lock, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Trophy, Zap, Award, Lock, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export default function AchievementsPage() {
-  const { userStats, achievements } = useStepwiseStore();
+  const userStats = useStepwiseStore((s) => s.userStats);
+  const achievements = useStepwiseStore((s) => s.achievements);
 
-  const xpRules = [
-    { action: '1 Study Hour', xp: '+10 XP' },
-    { action: 'Complete PDF / Book', xp: '+40 XP' },
-    { action: 'Gym Workout Session', xp: '+25 XP' },
-    { action: 'Weekly Reflection Review', xp: '+75 XP' },
-    { action: 'Finish Entire Subject', xp: '+300 XP' },
-    { action: 'Finish Major Goal Track', xp: '+1000 XP' },
-  ];
+  const xpRules = useMemo(
+    () => [
+      { action: '1 Study Hour', xp: '+10 XP' },
+      { action: 'Complete PDF / Book', xp: '+40 XP' },
+      { action: 'Gym Workout Session', xp: '+25 XP' },
+      { action: 'Weekly Reflection Review', xp: '+75 XP' },
+      { action: 'Finish Entire Subject', xp: '+300 XP' },
+      { action: 'Finish Major Goal Track', xp: '+1000 XP' },
+    ],
+    []
+  );
+
+  const unlockedCount = useMemo(
+    () => (achievements || []).filter((a) => a.unlocked).length,
+    [achievements]
+  );
 
   return (
     <div className="space-y-8 pb-12">
@@ -71,7 +80,7 @@ export default function AchievementsPage() {
       <div className="space-y-4">
         <h3 className="text-base font-extrabold text-white flex items-center gap-2">
           <Award className="w-5 h-5 text-purple-400" />
-          Trophy Cabinet ({achievements.filter((a) => a.unlocked).length} / {achievements.length} Unlocked)
+          Trophy Cabinet ({unlockedCount} / {achievements.length} Unlocked)
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
