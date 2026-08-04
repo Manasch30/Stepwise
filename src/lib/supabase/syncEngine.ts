@@ -395,6 +395,97 @@ export async function fetchAndHydrateUserData(userId: string) {
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
 
+    // Unified Map Deduplication & Merging for all collections
+    const subjectMap = new Map<string, Subject>();
+    (useStepwiseStore.getState().subjects || []).forEach((s) => subjectMap.set(s.id, s));
+    if (subjects !== null && transformedSubjects.length > 0) {
+      transformedSubjects.forEach((s) => {
+        const existing = subjectMap.get(s.id);
+        subjectMap.set(s.id, existing ? { ...existing, ...s } : s);
+      });
+    }
+    const finalSubjects = Array.from(subjectMap.values());
+
+    const techMap = new Map<string, TechStackItem>();
+    (useStepwiseStore.getState().techStack || []).forEach((t) => techMap.set(t.id, t));
+    if (techStack !== null && transformedTech.length > 0) {
+      transformedTech.forEach((t) => {
+        const existing = techMap.get(t.id);
+        techMap.set(t.id, existing ? { ...existing, ...t } : t);
+      });
+    }
+    const finalTechStack = Array.from(techMap.values());
+
+    const jpMap = new Map<string, JapaneseResource>();
+    (useStepwiseStore.getState().japaneseResources || []).forEach((j) => jpMap.set(j.id, j));
+    if (japaneseResources !== null && transformedJp.length > 0) {
+      transformedJp.forEach((j) => {
+        const existing = jpMap.get(j.id);
+        jpMap.set(j.id, existing ? { ...existing, ...j } : j);
+      });
+    }
+    const finalJp = Array.from(jpMap.values());
+
+    const projectMap = new Map<string, ProjectItem>();
+    (useStepwiseStore.getState().projects || []).forEach((p) => projectMap.set(p.id, p));
+    if (projects !== null && transformedProjects.length > 0) {
+      transformedProjects.forEach((p) => {
+        const existing = projectMap.get(p.id);
+        projectMap.set(p.id, existing ? { ...existing, ...p } : p);
+      });
+    }
+    const finalProjects = Array.from(projectMap.values());
+
+    const roadmapMap = new Map<string, RoadmapItem>();
+    (useStepwiseStore.getState().roadmap || []).forEach((r) => roadmapMap.set(r.id, r));
+    if (roadmap !== null && transformedRoadmap.length > 0) {
+      transformedRoadmap.forEach((r) => {
+        const existing = roadmapMap.get(r.id);
+        roadmapMap.set(r.id, existing ? { ...existing, ...r } : r);
+      });
+    }
+    const finalRoadmap = Array.from(roadmapMap.values());
+
+    const bookMap = new Map<string, Book>();
+    (useStepwiseStore.getState().books || []).forEach((b) => bookMap.set(b.id, b));
+    if (books !== null && transformedBooks.length > 0) {
+      transformedBooks.forEach((b) => {
+        const existing = bookMap.get(b.id);
+        bookMap.set(b.id, existing ? { ...existing, ...b } : b);
+      });
+    }
+    const finalBooks = Array.from(bookMap.values());
+
+    const prMap = new Map<string, PRRecord>();
+    (useStepwiseStore.getState().prRecords || []).forEach((pr) => prMap.set(pr.id, pr));
+    if (prRecords !== null && transformedPRs.length > 0) {
+      transformedPRs.forEach((pr) => {
+        const existing = prMap.get(pr.id);
+        prMap.set(pr.id, existing ? { ...existing, ...pr } : pr);
+      });
+    }
+    const finalPRs = Array.from(prMap.values());
+
+    const fitMap = new Map<string, DailyFitnessLog>();
+    (useStepwiseStore.getState().dailyFitnessLogs || []).forEach((f) => fitMap.set(f.id, f));
+    if (dailyFitnessLogs !== null && transformedFitness.length > 0) {
+      transformedFitness.forEach((f) => {
+        const existing = fitMap.get(f.id);
+        fitMap.set(f.id, existing ? { ...existing, ...f } : f);
+      });
+    }
+    const finalFitness = Array.from(fitMap.values());
+
+    const lecMap = new Map<string, LectureLog>();
+    (useStepwiseStore.getState().lectureLogs || []).forEach((l) => lecMap.set(l.id, l));
+    if (lectureLogs !== null && transformedLectureLogs.length > 0) {
+      transformedLectureLogs.forEach((l) => {
+        const existing = lecMap.get(l.id);
+        lecMap.set(l.id, existing ? { ...existing, ...l } : l);
+      });
+    }
+    const finalLectureLogs = Array.from(lecMap.values());
+
     // Merge & deduplicate Revision Matrix: start with initial default chapters, overlay current local store, then overlay Supabase fetched records
     const revisionMap = new Map<string, ChapterRevisionItem>();
     initialRevisionMatrix.forEach((r) => revisionMap.set(r.id, r));
@@ -426,16 +517,16 @@ export async function fetchAndHydrateUserData(userId: string) {
         xp: profile?.xp ?? state.userStats.xp,
         streak: profile?.streak ?? state.userStats.streak,
       },
-      subjects: subjects !== null && (transformedSubjects.length > 0 || !isNewUserDb) ? transformedSubjects : state.subjects,
-      japaneseResources: japaneseResources !== null ? transformedJp : state.japaneseResources,
-      dailyFitnessLogs: dailyFitnessLogs !== null ? transformedFitness : state.dailyFitnessLogs,
-      prRecords: prRecords !== null ? transformedPRs : state.prRecords,
-      projects: projects !== null ? transformedProjects : state.projects,
-      techStack: techStack !== null && (transformedTech.length > 0 || !isNewUserDb) ? transformedTech : state.techStack,
+      subjects: finalSubjects,
+      japaneseResources: finalJp,
+      dailyFitnessLogs: finalFitness,
+      prRecords: finalPRs,
+      projects: finalProjects,
+      techStack: finalTechStack,
       revisionMatrix: finalRevisionMatrix,
-      lectureLogs: lectureLogs !== null ? transformedLectureLogs : state.lectureLogs,
-      roadmap: roadmap !== null ? transformedRoadmap : state.roadmap,
-      books: books !== null ? transformedBooks : state.books,
+      lectureLogs: finalLectureLogs,
+      roadmap: finalRoadmap,
+      books: finalBooks,
       recentEvents:
         reconstructedEvents.length > 0
           ? reconstructedEvents.slice(0, 50)
@@ -492,249 +583,209 @@ export async function syncCurrentStateToCloud(
     }
 
     // 2. Sync Projects
-    if (shouldSync('projects')) {
-      if (state.projects && state.projects.length > 0) {
-        const projectPayloads = deduplicatePayloads(
-          state.projects.map((p) => ({
-            id: getScopedId(p.id, userId),
-            user_id: userId,
-            title: p.title,
-            description: p.description,
-            category: p.category,
-            progress: p.progress,
-            github: p.github,
-            status: p.status,
-            tech_stack: p.tech_stack || [],
-            updated_at: new Date().toISOString(),
-          }))
-        );
-        const { error: projErr } = await supabase.from('projects').upsert(projectPayloads);
-        if (projErr) {
-          console.error('[Supabase Push] Projects error:', projErr.message);
-          syncErrors.push(`projects: ${projErr.message}`);
-        }
-      } else {
-        await supabase.from('projects').delete().eq('user_id', userId);
+    if (shouldSync('projects') && state.projects && state.projects.length > 0) {
+      const projectPayloads = deduplicatePayloads(
+        state.projects.map((p) => ({
+          id: getScopedId(p.id, userId),
+          user_id: userId,
+          title: p.title,
+          description: p.description,
+          category: p.category,
+          progress: p.progress,
+          github: p.github,
+          status: p.status,
+          tech_stack: p.tech_stack || [],
+          updated_at: new Date().toISOString(),
+        }))
+      );
+      const { error: projErr } = await supabase.from('projects').upsert(projectPayloads);
+      if (projErr) {
+        console.error('[Supabase Push] Projects error:', projErr.message);
+        syncErrors.push(`projects: ${projErr.message}`);
       }
     }
 
     // 3. Sync Tech Stack
-    if (shouldSync('tech_stack')) {
-      if (state.techStack && state.techStack.length > 0) {
-        const techPayloads = deduplicatePayloads(
-          state.techStack.map((t) => ({
-            id: getScopedId(t.id, userId),
-            user_id: userId,
-            name: t.name,
-            category: t.category,
-            proficiency: t.proficiency,
-            notes: t.notes,
-          }))
-        );
-        const { error: techErr } = await supabase.from('tech_stack').upsert(techPayloads);
-        if (techErr) {
-          console.error('[Supabase Push] Tech stack error:', techErr.message);
-          syncErrors.push(`tech_stack: ${techErr.message}`);
-        }
-      } else {
-        await supabase.from('tech_stack').delete().eq('user_id', userId);
+    if (shouldSync('tech_stack') && state.techStack && state.techStack.length > 0) {
+      const techPayloads = deduplicatePayloads(
+        state.techStack.map((t) => ({
+          id: getScopedId(t.id, userId),
+          user_id: userId,
+          name: t.name,
+          category: t.category,
+          proficiency: t.proficiency,
+          notes: t.notes,
+        }))
+      );
+      const { error: techErr } = await supabase.from('tech_stack').upsert(techPayloads);
+      if (techErr) {
+        console.error('[Supabase Push] Tech stack error:', techErr.message);
+        syncErrors.push(`tech_stack: ${techErr.message}`);
       }
     }
 
     // 4. Sync Subjects
-    if (shouldSync('subjects')) {
-      if (state.subjects && state.subjects.length > 0) {
-        const subjectPayloads = deduplicatePayloads(
-          state.subjects.map((s) => ({
-            id: getScopedId(s.id, userId),
-            user_id: userId,
-            title: s.title,
-            track: s.track,
-            hours_target: s.hours_target,
-            hours_completed: s.hours_completed,
-          }))
-        );
-        const { error: subErr } = await supabase.from('subjects').upsert(subjectPayloads);
-        if (subErr) {
-          console.error('[Supabase Push] Subjects error:', subErr.message);
-          syncErrors.push(`subjects: ${subErr.message}`);
-        }
-      } else {
-        await supabase.from('subjects').delete().eq('user_id', userId);
+    if (shouldSync('subjects') && state.subjects && state.subjects.length > 0) {
+      const subjectPayloads = deduplicatePayloads(
+        state.subjects.map((s) => ({
+          id: getScopedId(s.id, userId),
+          user_id: userId,
+          title: s.title,
+          track: s.track,
+          hours_target: s.hours_target,
+          hours_completed: s.hours_completed,
+        }))
+      );
+      const { error: subErr } = await supabase.from('subjects').upsert(subjectPayloads);
+      if (subErr) {
+        console.error('[Supabase Push] Subjects error:', subErr.message);
+        syncErrors.push(`subjects: ${subErr.message}`);
       }
     }
 
     // 5. Sync Revision Matrix
-    if (shouldSync('revision_matrix')) {
-      if (state.revisionMatrix && state.revisionMatrix.length > 0) {
-        const revisionPayloads = deduplicatePayloads(
-          state.revisionMatrix.map((r) => ({
-            id: getScopedId(r.id, userId),
-            user_id: userId,
-            subject: r.subject,
-            chapter: r.chapter,
-            track: r.category,
-            revision1: !!r.checkpoints?.rev1,
-            revision2: !!r.checkpoints?.rev2,
-            revision3: !!r.checkpoints?.rev3,
-            pyqs_done: !!r.checkpoints?.pyq1,
-            notes_done: !!r.checkpoints?.short_notes,
-          }))
-        );
-        const { error: revErr } = await supabase.from('revision_matrix').upsert(revisionPayloads);
-        if (revErr) {
-          console.error('[Supabase Push] Revision matrix error:', revErr.message);
-          syncErrors.push(`revision_matrix: ${revErr.message}`);
-        }
-      } else {
-        await supabase.from('revision_matrix').delete().eq('user_id', userId);
+    if (shouldSync('revision_matrix') && state.revisionMatrix && state.revisionMatrix.length > 0) {
+      const revisionPayloads = deduplicatePayloads(
+        state.revisionMatrix.map((r) => ({
+          id: getScopedId(r.id, userId),
+          user_id: userId,
+          subject: r.subject,
+          chapter: r.chapter,
+          track: r.category,
+          revision1: !!r.checkpoints?.rev1,
+          revision2: !!r.checkpoints?.rev2,
+          revision3: !!r.checkpoints?.rev3,
+          pyqs_done: !!r.checkpoints?.pyq1,
+          notes_done: !!r.checkpoints?.short_notes,
+        }))
+      );
+      const { error: revErr } = await supabase.from('revision_matrix').upsert(revisionPayloads);
+      if (revErr) {
+        console.error('[Supabase Push] Revision matrix error:', revErr.message);
+        syncErrors.push(`revision_matrix: ${revErr.message}`);
       }
     }
 
     // 6. Sync Japanese Resources
-    if (shouldSync('japanese_resources')) {
-      if (state.japaneseResources && state.japaneseResources.length > 0) {
-        const jpPayloads = deduplicatePayloads(
-          state.japaneseResources.map((j) => ({
-            id: getScopedId(j.id, userId),
-            user_id: userId,
-            title: j.title,
-            type: j.resource_type,
-            episodes_or_chapters: j.target,
-            completed: j.completed,
-            hours_spent: j.completed,
-            level: j.level,
-          }))
-        );
-        const { error: jpErr } = await supabase.from('japanese_resources').upsert(jpPayloads);
-        if (jpErr) {
-          console.error('[Supabase Push] Japanese error:', jpErr.message);
-          syncErrors.push(`japanese_resources: ${jpErr.message}`);
-        }
-      } else {
-        await supabase.from('japanese_resources').delete().eq('user_id', userId);
+    if (shouldSync('japanese_resources') && state.japaneseResources && state.japaneseResources.length > 0) {
+      const jpPayloads = deduplicatePayloads(
+        state.japaneseResources.map((j) => ({
+          id: getScopedId(j.id, userId),
+          user_id: userId,
+          title: j.title,
+          type: j.resource_type,
+          episodes_or_chapters: j.target,
+          completed: j.completed,
+          hours_spent: j.completed,
+          level: j.level,
+        }))
+      );
+      const { error: jpErr } = await supabase.from('japanese_resources').upsert(jpPayloads);
+      if (jpErr) {
+        console.error('[Supabase Push] Japanese error:', jpErr.message);
+        syncErrors.push(`japanese_resources: ${jpErr.message}`);
       }
     }
 
     // 7. Sync Daily Fitness Logs
-    if (shouldSync('daily_fitness_logs')) {
-      if (state.dailyFitnessLogs && state.dailyFitnessLogs.length > 0) {
-        const fitnessPayloads = deduplicatePayloads(
-          state.dailyFitnessLogs.map((f) => ({
-            id: getScopedId(f.id, userId),
-            user_id: userId,
-            date: f.date,
-            steps: f.steps,
-            calories: f.calories,
-            protein: f.protein,
-          }))
-        );
-        const { error: fitErr } = await supabase.from('daily_fitness_logs').upsert(fitnessPayloads);
-        if (fitErr) {
-          console.error('[Supabase Push] Fitness error:', fitErr.message);
-          syncErrors.push(`daily_fitness_logs: ${fitErr.message}`);
-        }
-      } else {
-        await supabase.from('daily_fitness_logs').delete().eq('user_id', userId);
+    if (shouldSync('daily_fitness_logs') && state.dailyFitnessLogs && state.dailyFitnessLogs.length > 0) {
+      const fitnessPayloads = deduplicatePayloads(
+        state.dailyFitnessLogs.map((f) => ({
+          id: getScopedId(f.id, userId),
+          user_id: userId,
+          date: f.date,
+          steps: f.steps,
+          calories: f.calories,
+          protein: f.protein,
+        }))
+      );
+      const { error: fitErr } = await supabase.from('daily_fitness_logs').upsert(fitnessPayloads);
+      if (fitErr) {
+        console.error('[Supabase Push] Fitness error:', fitErr.message);
+        syncErrors.push(`daily_fitness_logs: ${fitErr.message}`);
       }
     }
 
     // 8. Sync PR Records
-    if (shouldSync('pr_records')) {
-      if (state.prRecords && state.prRecords.length > 0) {
-        const prPayloads = deduplicatePayloads(
-          state.prRecords.map((pr) => ({
-            id: getScopedId(pr.id, userId),
-            user_id: userId,
-            exercise: pr.exercise,
-            weight: pr.weight_kg,
-            reps: pr.reps,
-            date: pr.date,
-            notes: pr.notes,
-          }))
-        );
-        const { error: prErr } = await supabase.from('pr_records').upsert(prPayloads);
-        if (prErr) {
-          console.error('[Supabase Push] PR records error:', prErr.message);
-          syncErrors.push(`pr_records: ${prErr.message}`);
-        }
-      } else {
-        await supabase.from('pr_records').delete().eq('user_id', userId);
+    if (shouldSync('pr_records') && state.prRecords && state.prRecords.length > 0) {
+      const prPayloads = deduplicatePayloads(
+        state.prRecords.map((pr) => ({
+          id: getScopedId(pr.id, userId),
+          user_id: userId,
+          exercise: pr.exercise,
+          weight: pr.weight_kg,
+          reps: pr.reps,
+          date: pr.date,
+          notes: pr.notes,
+        }))
+      );
+      const { error: prErr } = await supabase.from('pr_records').upsert(prPayloads);
+      if (prErr) {
+        console.error('[Supabase Push] PR records error:', prErr.message);
+        syncErrors.push(`pr_records: ${prErr.message}`);
       }
     }
 
     // 9. Sync Lecture Logs
-    if (shouldSync('lecture_logs')) {
-      if (state.lectureLogs && state.lectureLogs.length > 0) {
-        const logPayloads = deduplicatePayloads(
-          state.lectureLogs.map((l) => ({
-            id: getScopedId(l.id, userId),
-            user_id: userId,
-            subject_id: getScopedId(l.subject_id, userId),
-            hours: l.hours,
-            remarks: l.remarks,
-            created_at: l.created_at || new Date().toISOString(),
-          }))
-        );
-        const { error: lecErr } = await supabase.from('lecture_logs').upsert(logPayloads);
-        if (lecErr) {
-          console.error('[Supabase Push] Lecture logs error:', lecErr.message);
-          syncErrors.push(`lecture_logs: ${lecErr.message}`);
-        }
-      } else {
-        await supabase.from('lecture_logs').delete().eq('user_id', userId);
+    if (shouldSync('lecture_logs') && state.lectureLogs && state.lectureLogs.length > 0) {
+      const logPayloads = deduplicatePayloads(
+        state.lectureLogs.map((l) => ({
+          id: getScopedId(l.id, userId),
+          user_id: userId,
+          subject_id: getScopedId(l.subject_id, userId),
+          hours: l.hours,
+          remarks: l.remarks,
+          created_at: l.created_at || new Date().toISOString(),
+        }))
+      );
+      const { error: lecErr } = await supabase.from('lecture_logs').upsert(logPayloads);
+      if (lecErr) {
+        console.error('[Supabase Push] Lecture logs error:', lecErr.message);
+        syncErrors.push(`lecture_logs: ${lecErr.message}`);
       }
     }
 
     // 10. Sync Roadmap Goals
-    if (shouldSync('roadmap')) {
-      if (state.roadmap && state.roadmap.length > 0) {
-        const roadmapPayloads = deduplicatePayloads(
-          state.roadmap.map((r) => ({
-            id: getScopedId(r.id, userId),
-            user_id: userId,
-            month: r.month,
-            week_number: r.week_number,
-            goal: r.goal,
-            priority: r.priority,
-            completed: r.completed,
-          }))
-        );
-        const { error: rmErr } = await supabase.from('roadmap').upsert(roadmapPayloads);
-        if (rmErr) {
-          console.error('[Supabase Push] Roadmap error:', rmErr.message);
-          syncErrors.push(`roadmap: ${rmErr.message}`);
-        }
-      } else {
-        await supabase.from('roadmap').delete().eq('user_id', userId);
+    if (shouldSync('roadmap') && state.roadmap && state.roadmap.length > 0) {
+      const roadmapPayloads = deduplicatePayloads(
+        state.roadmap.map((r) => ({
+          id: getScopedId(r.id, userId),
+          user_id: userId,
+          month: r.month,
+          week_number: r.week_number,
+          goal: r.goal,
+          priority: r.priority,
+          completed: r.completed,
+        }))
+      );
+      const { error: rmErr } = await supabase.from('roadmap').upsert(roadmapPayloads);
+      if (rmErr) {
+        console.error('[Supabase Push] Roadmap error:', rmErr.message);
+        syncErrors.push(`roadmap: ${rmErr.message}`);
       }
     }
 
     // 11. Sync Books
-    if (shouldSync('books')) {
-      if (state.books && state.books.length > 0) {
-        const bookPayloads = deduplicatePayloads(
-          state.books.map((b) => ({
-            id: getScopedId(b.id, userId),
-            user_id: userId,
-            title: b.title,
-            author: b.author,
-            category: b.category,
-            total_pages: b.total_pages,
-            completed_pages: b.completed_pages,
-            status: b.status,
-            notes: b.notes,
-            created_at: b.created_at,
-            updated_at: b.updated_at,
-          }))
-        );
-        const { error: bkErr } = await supabase.from('books').upsert(bookPayloads);
-        if (bkErr) {
-          console.error('[Supabase Push] Books error:', bkErr.message);
-          syncErrors.push(`books: ${bkErr.message}`);
-        }
-      } else {
-        await supabase.from('books').delete().eq('user_id', userId);
+    if (shouldSync('books') && state.books && state.books.length > 0) {
+      const bookPayloads = deduplicatePayloads(
+        state.books.map((b) => ({
+          id: getScopedId(b.id, userId),
+          user_id: userId,
+          title: b.title,
+          author: b.author,
+          category: b.category,
+          total_pages: b.total_pages,
+          completed_pages: b.completed_pages,
+          status: b.status,
+          notes: b.notes,
+          created_at: b.created_at,
+          updated_at: b.updated_at,
+        }))
+      );
+      const { error: bkErr } = await supabase.from('books').upsert(bookPayloads);
+      if (bkErr) {
+        console.error('[Supabase Push] Books error:', bkErr.message);
+        syncErrors.push(`books: ${bkErr.message}`);
       }
     }
   } catch (err: unknown) {
