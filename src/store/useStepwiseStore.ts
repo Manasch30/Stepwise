@@ -98,7 +98,7 @@ const initialGoals: Goal[] = [
   { id: 'projects', title: 'Open Source & AI System Build', type: 'projects', target: 100, current: 0, status: 'active', icon: 'Code', color: '#f59e0b', xp: 500 },
 ];
 
-const initialSubjects: Subject[] = [
+export const initialSubjects: Subject[] = [
   // GATE CS
   { id: 'cs_dbms', goal_id: 'gate_cs', track: 'GATE CS', title: 'Database Management Systems (DBMS)', hours_target: 30, hours_completed: 0, checkpoint: 0, status: 'not_started' },
   { id: 'cs_os', goal_id: 'gate_cs', track: 'GATE CS', title: 'Operating Systems', hours_target: 35, hours_completed: 0, checkpoint: 0, status: 'not_started' },

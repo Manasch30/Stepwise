@@ -1,5 +1,5 @@
 import { createClient } from './client';
-import { useStepwiseStore } from '@/store/useStepwiseStore';
+import { useStepwiseStore, initialSubjects } from '@/store/useStepwiseStore';
 import {
   Subject,
   JapaneseResource,
@@ -416,7 +416,14 @@ export async function fetchAndHydrateUserData(userId: string) {
     );
 
     // When Supabase query succeeds (non-null), remote data is authoritative for user state.
-    const finalSubjects = subjects !== null ? cleanSubjects : (useStepwiseStore.getState().subjects || []);
+    // For subjects, if remote returns 0 rows (new user), fall back to initial default GATE subjects!
+    const currentState = useStepwiseStore.getState();
+    const finalSubjects =
+      subjects !== null && cleanSubjects.length > 0
+        ? cleanSubjects
+        : currentState.subjects && currentState.subjects.length > 0
+        ? currentState.subjects
+        : initialSubjects;
     const finalTechStack = techStack !== null ? cleanTech : (useStepwiseStore.getState().techStack || []);
     const finalJp = japaneseResources !== null ? cleanJp : (useStepwiseStore.getState().japaneseResources || []);
     const finalProjects = projects !== null ? cleanProjects : (useStepwiseStore.getState().projects || []);
