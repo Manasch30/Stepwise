@@ -395,101 +395,20 @@ export async function fetchAndHydrateUserData(userId: string) {
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
 
-    // Unified Map Deduplication & Merging for all collections
-    const subjectMap = new Map<string, Subject>();
-    (useStepwiseStore.getState().subjects || []).forEach((s) => subjectMap.set(s.id, s));
-    if (subjects !== null && transformedSubjects.length > 0) {
-      transformedSubjects.forEach((s) => {
-        const existing = subjectMap.get(s.id);
-        subjectMap.set(s.id, existing ? { ...existing, ...s } : s);
-      });
-    }
-    const finalSubjects = Array.from(subjectMap.values());
+    // When Supabase query succeeds (non-null), remote data is authoritative for user state.
+    const finalSubjects = subjects !== null ? transformedSubjects : (useStepwiseStore.getState().subjects || []);
+    const finalTechStack = techStack !== null ? transformedTech : (useStepwiseStore.getState().techStack || []);
+    const finalJp = japaneseResources !== null ? transformedJp : (useStepwiseStore.getState().japaneseResources || []);
+    const finalProjects = projects !== null ? transformedProjects : (useStepwiseStore.getState().projects || []);
+    const finalRoadmap = roadmap !== null ? transformedRoadmap : (useStepwiseStore.getState().roadmap || []);
+    const finalBooks = books !== null ? transformedBooks : (useStepwiseStore.getState().books || []);
+    const finalPRs = prRecords !== null ? transformedPRs : (useStepwiseStore.getState().prRecords || []);
+    const finalFitness = dailyFitnessLogs !== null ? transformedFitness : (useStepwiseStore.getState().dailyFitnessLogs || []);
+    const finalLectureLogs = lectureLogs !== null ? transformedLectureLogs : (useStepwiseStore.getState().lectureLogs || []);
 
-    const techMap = new Map<string, TechStackItem>();
-    (useStepwiseStore.getState().techStack || []).forEach((t) => techMap.set(t.id, t));
-    if (techStack !== null && transformedTech.length > 0) {
-      transformedTech.forEach((t) => {
-        const existing = techMap.get(t.id);
-        techMap.set(t.id, existing ? { ...existing, ...t } : t);
-      });
-    }
-    const finalTechStack = Array.from(techMap.values());
-
-    const jpMap = new Map<string, JapaneseResource>();
-    (useStepwiseStore.getState().japaneseResources || []).forEach((j) => jpMap.set(j.id, j));
-    if (japaneseResources !== null && transformedJp.length > 0) {
-      transformedJp.forEach((j) => {
-        const existing = jpMap.get(j.id);
-        jpMap.set(j.id, existing ? { ...existing, ...j } : j);
-      });
-    }
-    const finalJp = Array.from(jpMap.values());
-
-    const projectMap = new Map<string, ProjectItem>();
-    (useStepwiseStore.getState().projects || []).forEach((p) => projectMap.set(p.id, p));
-    if (projects !== null && transformedProjects.length > 0) {
-      transformedProjects.forEach((p) => {
-        const existing = projectMap.get(p.id);
-        projectMap.set(p.id, existing ? { ...existing, ...p } : p);
-      });
-    }
-    const finalProjects = Array.from(projectMap.values());
-
-    const roadmapMap = new Map<string, RoadmapItem>();
-    (useStepwiseStore.getState().roadmap || []).forEach((r) => roadmapMap.set(r.id, r));
-    if (roadmap !== null && transformedRoadmap.length > 0) {
-      transformedRoadmap.forEach((r) => {
-        const existing = roadmapMap.get(r.id);
-        roadmapMap.set(r.id, existing ? { ...existing, ...r } : r);
-      });
-    }
-    const finalRoadmap = Array.from(roadmapMap.values());
-
-    const bookMap = new Map<string, Book>();
-    (useStepwiseStore.getState().books || []).forEach((b) => bookMap.set(b.id, b));
-    if (books !== null && transformedBooks.length > 0) {
-      transformedBooks.forEach((b) => {
-        const existing = bookMap.get(b.id);
-        bookMap.set(b.id, existing ? { ...existing, ...b } : b);
-      });
-    }
-    const finalBooks = Array.from(bookMap.values());
-
-    const prMap = new Map<string, PRRecord>();
-    (useStepwiseStore.getState().prRecords || []).forEach((pr) => prMap.set(pr.id, pr));
-    if (prRecords !== null && transformedPRs.length > 0) {
-      transformedPRs.forEach((pr) => {
-        const existing = prMap.get(pr.id);
-        prMap.set(pr.id, existing ? { ...existing, ...pr } : pr);
-      });
-    }
-    const finalPRs = Array.from(prMap.values());
-
-    const fitMap = new Map<string, DailyFitnessLog>();
-    (useStepwiseStore.getState().dailyFitnessLogs || []).forEach((f) => fitMap.set(f.id, f));
-    if (dailyFitnessLogs !== null && transformedFitness.length > 0) {
-      transformedFitness.forEach((f) => {
-        const existing = fitMap.get(f.id);
-        fitMap.set(f.id, existing ? { ...existing, ...f } : f);
-      });
-    }
-    const finalFitness = Array.from(fitMap.values());
-
-    const lecMap = new Map<string, LectureLog>();
-    (useStepwiseStore.getState().lectureLogs || []).forEach((l) => lecMap.set(l.id, l));
-    if (lectureLogs !== null && transformedLectureLogs.length > 0) {
-      transformedLectureLogs.forEach((l) => {
-        const existing = lecMap.get(l.id);
-        lecMap.set(l.id, existing ? { ...existing, ...l } : l);
-      });
-    }
-    const finalLectureLogs = Array.from(lecMap.values());
-
-    // Merge & deduplicate Revision Matrix: start with initial default chapters, overlay current local store, then overlay Supabase fetched records
+    // Merge & deduplicate Revision Matrix: start with initial default chapters, overlay Supabase records
     const revisionMap = new Map<string, ChapterRevisionItem>();
     initialRevisionMatrix.forEach((r) => revisionMap.set(r.id, r));
-    (useStepwiseStore.getState().revisionMatrix || []).forEach((r) => revisionMap.set(r.id, r));
     if (revisionMatrix !== null && transformedRevision.length > 0) {
       transformedRevision.forEach((r) => {
         const existing = revisionMap.get(r.id);
