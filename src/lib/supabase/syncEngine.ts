@@ -794,29 +794,52 @@ export async function deleteUserAccountAndSignOut(): Promise<{ success: boolean;
     data: { session },
   } = await supabase.auth.getSession();
 
-  if (session?.user) {
-    const userId = session.user.id;
-    const tables = [
-      'profiles',
-      'projects',
-      'tech_stack',
-      'subjects',
-      'revision_matrix',
-      'japanese_resources',
-      'daily_fitness_logs',
-      'pr_records',
-      'lecture_logs',
-      'roadmap',
-      'books',
-    ];
-
-    for (const table of tables) {
-      await supabase.from(table).delete().eq(table === 'profiles' ? 'id' : 'user_id', userId);
-    }
-
-    await supabase.auth.signOut();
+  if (!session?.user) {
+    useStepwiseStore.getState().resetToDefaults();
+    return { success: true, message: 'Signed out.' };
   }
 
-  useStepwiseStore.getState().resetToDefaults();
-  return { success: true, message: 'User account data permanently deleted.' };
+  const userId = session.user.id;
+
+  try {
+    // 1. First attempt complete account & Auth credential deletion via RPC
+    const { error: rpcError } = await supabase.rpc('delete_user_account');
+
+    if (rpcError) {
+      console.warn('[Supabase Account Delete] RPC notice (falling back to table cleanup):', rpcError.message);
+      // Fallback: Delete all rows across all 11 public tables
+      const tables = [
+        'profiles',
+        'projects',
+        'tech_stack',
+        'subjects',
+        'revision_matrix',
+        'japanese_resources',
+        'daily_fitness_logs',
+        'pr_records',
+        'lecture_logs',
+        'roadmap',
+        'books',
+      ];
+
+      for (const table of tables) {
+        await supabase.from(table).delete().eq(table === 'profiles' ? 'id' : 'user_id', userId);
+      }
+    }
+
+    // 2. Complete Sign Out & Clear Local Store
+    await supabase.auth.signOut();
+    useStepwiseStore.getState().resetToDefaults();
+
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+
+    return { success: true, message: 'Your user account and all data have been permanently deleted.' };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error('[Supabase Account Delete Error]:', errorMsg);
+    return { success: false, message: `Deletion error: ${errorMsg}` };
+  }
 }

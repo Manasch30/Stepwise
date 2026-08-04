@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
-import { Flame, Zap, Plus, RefreshCw, Layers, Menu, LogOut, User, Cloud, Check, RotateCcw } from 'lucide-react';
+import { Flame, Zap, Plus, RefreshCw, Layers, Menu, LogOut, User, Cloud, Check, RotateCcw, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
-import { manualCloudSync, wipeUserDataAndResetAccount } from '@/lib/supabase/syncEngine';
+import { manualCloudSync, wipeUserDataAndResetAccount, deleteUserAccountAndSignOut } from '@/lib/supabase/syncEngine';
 import Link from 'next/link';
 
 interface NavbarProps {
@@ -203,6 +203,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
           >
             <RotateCcw className="w-4 h-4 text-rose-400" />
           </button>
+
+          {/* Delete User Account & Credentials */}
+          {userEmail && (
+            <button
+              onClick={async () => {
+                if (
+                  confirm(
+                    '❌ PERMANENT ACCOUNT DELETION\n\nAre you sure you want to PERMANENTLY DELETE your account and ALL associated data?\n\nThis will permanently destroy your user credentials and all cloud records. You will not be able to log back in with this account.'
+                  )
+                ) {
+                  const res = await deleteUserAccountAndSignOut();
+                  alert(res.message);
+                }
+              }}
+              title="Permanently Delete Account & Sign Out"
+              className="hidden sm:flex items-center gap-1 p-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-xl transition-all"
+            >
+              <Trash2 className="w-4 h-4 text-red-400" />
+            </button>
+          )}
         </div>
       </div>
     </header>

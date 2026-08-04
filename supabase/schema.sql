@@ -274,3 +274,39 @@ CREATE INDEX IF NOT EXISTS idx_pr_records_user_date ON public.pr_records (user_i
 CREATE INDEX IF NOT EXISTS idx_roadmap_user_month ON public.roadmap (user_id, month, week_number);
 CREATE INDEX IF NOT EXISTS idx_tech_stack_user ON public.tech_stack (user_id);
 
+
+-- ========================================================
+-- 13. SECURE USER ACCOUNT & AUTH DELETION RPC FUNCTION
+-- ========================================================
+CREATE OR REPLACE FUNCTION public.delete_user_account()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id uuid;
+BEGIN
+  current_user_id := auth.uid();
+  
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- 1. Wipe all user rows from public tables
+  DELETE FROM public.projects WHERE user_id = current_user_id;
+  DELETE FROM public.tech_stack WHERE user_id = current_user_id;
+  DELETE FROM public.subjects WHERE user_id = current_user_id;
+  DELETE FROM public.revision_matrix WHERE user_id = current_user_id;
+  DELETE FROM public.japanese_resources WHERE user_id = current_user_id;
+  DELETE FROM public.daily_fitness_logs WHERE user_id = current_user_id;
+  DELETE FROM public.pr_records WHERE user_id = current_user_id;
+  DELETE FROM public.lecture_logs WHERE user_id = current_user_id;
+  DELETE FROM public.roadmap WHERE user_id = current_user_id;
+  DELETE FROM public.books WHERE user_id = current_user_id;
+  DELETE FROM public.profiles WHERE id = current_user_id;
+
+  -- 2. Permanently delete Auth user credentials
+  DELETE FROM auth.users WHERE id = current_user_id;
+END;
+$$;
+
