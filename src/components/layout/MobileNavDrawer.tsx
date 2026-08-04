@@ -24,11 +24,13 @@ import {
   Cloud,
   Check,
   RefreshCw,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
 import { createClient } from '@/lib/supabase/client';
-import { manualCloudSync } from '@/lib/supabase/syncEngine';
+import { manualCloudSync, wipeUserDataAndResetAccount, deleteUserAccountAndSignOut } from '@/lib/supabase/syncEngine';
 
 interface MobileNavDrawerProps {
   isOpen: boolean;
@@ -245,6 +247,46 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
                   <span>{isSyncing ? 'Syncing with Supabase...' : syncStatus === 'success' ? 'Database Synced!' : 'Sync Cloud Now'}</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 font-mono">ON DEMAND</span>
+              </button>
+            </div>
+
+            {/* Account Reset & Data Management */}
+            <div className="pt-2 grid grid-cols-2 gap-2">
+              <button
+                onClick={async () => {
+                  if (
+                    confirm(
+                      '⚠️ WARNING: Are you sure you want to WIPE all your account data and restart with clean default seed data?\n\nThis will permanently delete all your logs from the cloud database and reset your account state.'
+                    )
+                  ) {
+                    const res = await wipeUserDataAndResetAccount();
+                    alert(res.message);
+                    onClose();
+                  }
+                }}
+                className="py-2 px-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Data</span>
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (
+                    confirm(
+                      '🚨 PERMANENT ACTION: Are you sure you want to DELETE your account data and sign out completely?'
+                    )
+                  ) {
+                    const res = await deleteUserAccountAndSignOut();
+                    alert(res.message);
+                    onClose();
+                    window.location.href = '/login';
+                  }
+                }}
+                className="py-2 px-3 rounded-xl bg-red-950/60 border border-red-800/40 text-red-400 hover:bg-red-900/60 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Account</span>
               </button>
             </div>
 

@@ -795,3 +795,82 @@ export async function syncCurrentStateToCloud(
 
   return syncErrors;
 }
+
+export async function wipeUserDataAndResetAccount(): Promise<{ success: boolean; message: string }> {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.user) {
+    useStepwiseStore.getState().resetToDefaults();
+    return { success: true, message: 'Local state reset to defaults.' };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    const tables = [
+      'profiles',
+      'projects',
+      'tech_stack',
+      'subjects',
+      'revision_matrix',
+      'japanese_resources',
+      'daily_fitness_logs',
+      'pr_records',
+      'lecture_logs',
+      'roadmap',
+      'books',
+    ];
+
+    for (const table of tables) {
+      await supabase.from(table).delete().eq('user_id', userId);
+    }
+
+    // Reset store state
+    useStepwiseStore.getState().resetToDefaults();
+
+    // Re-push clean initial defaults to Supabase
+    await syncCurrentStateToCloud(useStepwiseStore.getState());
+
+    return { success: true, message: 'All cloud database data wiped and reset to fresh defaults!' };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error('[Supabase Account Reset Error]:', errorMsg);
+    return { success: false, message: `Reset failed: ${errorMsg}` };
+  }
+}
+
+export async function deleteUserAccountAndSignOut(): Promise<{ success: boolean; message: string }> {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (session?.user) {
+    const userId = session.user.id;
+    const tables = [
+      'profiles',
+      'projects',
+      'tech_stack',
+      'subjects',
+      'revision_matrix',
+      'japanese_resources',
+      'daily_fitness_logs',
+      'pr_records',
+      'lecture_logs',
+      'roadmap',
+      'books',
+    ];
+
+    for (const table of tables) {
+      await supabase.from(table).delete().eq('user_id', userId);
+    }
+
+    await supabase.auth.signOut();
+  }
+
+  useStepwiseStore.getState().resetToDefaults();
+  return { success: true, message: 'User account data permanently deleted.' };
+}

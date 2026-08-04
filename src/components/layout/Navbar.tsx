@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useStepwiseStore } from '@/store/useStepwiseStore';
-import { Flame, Zap, Plus, RefreshCw, Layers, Menu, LogOut, User, Cloud, Check } from 'lucide-react';
+import { Flame, Zap, Plus, RefreshCw, Layers, Menu, LogOut, User, Cloud, Check, RotateCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
-import { manualCloudSync } from '@/lib/supabase/syncEngine';
+import { manualCloudSync, wipeUserDataAndResetAccount } from '@/lib/supabase/syncEngine';
 import Link from 'next/link';
 
 interface NavbarProps {
@@ -15,7 +15,6 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDrawer }) => {
   const userStats = useStepwiseStore((s) => s.userStats);
-  const resetToDefaults = useStepwiseStore((s) => s.resetToDefaults);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -187,17 +186,22 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenMobileDraw
             </Link>
           )}
 
-          {/* Reset button helper */}
+          {/* Reset & Wipe Account Data Helper */}
           <button
-            onClick={() => {
-              if (confirm('Reset to default seed logs?')) {
-                resetToDefaults();
+            onClick={async () => {
+              if (
+                confirm(
+                  '⚠️ WARNING: Are you sure you want to WIPE all your account data and restart with clean default seed data?\n\nThis will permanently delete all your logs from the cloud database and reset your account state.'
+                )
+              ) {
+                const res = await wipeUserDataAndResetAccount();
+                alert(res.message);
               }
             }}
-            title="Reset data to defaults"
-            className="hidden sm:block p-2 text-zinc-500 hover:text-zinc-300 hover:bg-white/5 rounded-lg transition-colors"
+            title="Wipe Cloud Data & Reset Account State"
+            className="hidden sm:flex items-center gap-1 p-2 text-rose-500/80 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-xl transition-all"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4 text-rose-400" />
           </button>
         </div>
       </div>
