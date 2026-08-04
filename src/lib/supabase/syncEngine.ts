@@ -13,6 +13,7 @@ import {
   Book,
   AppEvent,
 } from '@/types';
+import { initialRevisionMatrix } from '@/data/initialRevisionMatrix';
 
 let syncDebounceTimer: NodeJS.Timeout | null = null;
 let realtimeChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
@@ -386,6 +387,29 @@ export async function fetchAndHydrateUserData(userId: string) {
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
 
+    // Merge & deduplicate Revision Matrix: start with initial default chapters, overlay current local store, then overlay Supabase fetched records
+    const revisionMap = new Map<string, ChapterRevisionItem>();
+    initialRevisionMatrix.forEach((r) => revisionMap.set(r.id, r));
+    (useStepwiseStore.getState().revisionMatrix || []).forEach((r) => revisionMap.set(r.id, r));
+    if (revisionMatrix !== null && transformedRevision.length > 0) {
+      transformedRevision.forEach((r) => {
+        const existing = revisionMap.get(r.id);
+        if (existing) {
+          revisionMap.set(r.id, {
+            ...existing,
+            ...r,
+            checkpoints: {
+              ...existing.checkpoints,
+              ...r.checkpoints,
+            },
+          });
+        } else {
+          revisionMap.set(r.id, r);
+        }
+      });
+    }
+    const finalRevisionMatrix = Array.from(revisionMap.values());
+
     // Hydrate store state with transformed database records
     useStepwiseStore.setState((state) => ({
       userStats: {
@@ -400,7 +424,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       prRecords: prRecords !== null ? transformedPRs : state.prRecords,
       projects: projects !== null ? transformedProjects : state.projects,
       techStack: techStack !== null && (transformedTech.length > 0 || !isNewUserDb) ? transformedTech : state.techStack,
-      revisionMatrix: revisionMatrix !== null && (transformedRevision.length > 0 || !isNewUserDb) ? transformedRevision : state.revisionMatrix,
+      revisionMatrix: finalRevisionMatrix,
       lectureLogs: lectureLogs !== null ? transformedLectureLogs : state.lectureLogs,
       roadmap: roadmap !== null ? transformedRoadmap : state.roadmap,
       books: books !== null ? transformedBooks : state.books,
@@ -529,7 +553,11 @@ export async function syncCurrentStateToCloud(
     // 5. Sync Revision Matrix
     if (shouldSync('revision_matrix')) {
       if (state.revisionMatrix && state.revisionMatrix.length > 0) {
-        const revisionPayloads = state.revisionMatrix.map((r) => ({
+        const uniqueMap = new Map<string, ChapterRevisionItem>();
+        state.revisionMatrix.forEach((r) => uniqueMap.set(r.id, r));
+        const uniqueRevisionItems = Array.from(uniqueMap.values());
+
+        const revisionPayloads = uniqueRevisionItems.map((r) => ({
           id: getScopedId(r.id, userId),
           user_id: userId,
           subject: r.subject,

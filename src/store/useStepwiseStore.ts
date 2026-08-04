@@ -1176,7 +1176,7 @@ export const useStepwiseStore = create<StepwiseState>()(
       addRevisionChapter: (category, subject, chapter) => {
         const state = get();
         const newItem: ChapterRevisionItem = {
-          id: 'rev_' + Date.now(),
+          id: 'rev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
           category,
           subject: subject.toUpperCase().trim(),
           chapter: chapter.trim(),
