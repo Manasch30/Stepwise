@@ -825,7 +825,7 @@ export async function wipeUserDataAndResetAccount(): Promise<{ success: boolean;
     ];
 
     for (const table of tables) {
-      await supabase.from(table).delete().eq('user_id', userId);
+      await supabase.from(table).delete().eq(table === 'profiles' ? 'id' : 'user_id', userId);
     }
 
     // Reset store state
@@ -865,7 +865,7 @@ export async function deleteUserAccountAndSignOut(): Promise<{ success: boolean;
     ];
 
     for (const table of tables) {
-      await supabase.from(table).delete().eq('user_id', userId);
+      await supabase.from(table).delete().eq(table === 'profiles' ? 'id' : 'user_id', userId);
     }
 
     await supabase.auth.signOut();
