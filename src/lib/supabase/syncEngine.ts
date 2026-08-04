@@ -18,6 +18,18 @@ let syncDebounceTimer: NodeJS.Timeout | null = null;
 let realtimeChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
 let lastLocalWriteTimestamp = 0;
 
+function getScopedId(id: string, userId: string): string {
+  if (!id || !userId) return id;
+  if (id.startsWith(`${userId}_`)) return id;
+  return `${userId}_${id}`;
+}
+
+function getUnscopedId(id: string, userId: string): string {
+  if (!id || !userId) return id;
+  if (id.startsWith(`${userId}_`)) return id.slice(userId.length + 1);
+  return id;
+}
+
 export async function deleteCloudRecord(tableName: string, id: string) {
   const supabase = createClient();
   const {
@@ -26,16 +38,19 @@ export async function deleteCloudRecord(tableName: string, id: string) {
 
   if (!session?.user) return;
   lastLocalWriteTimestamp = Date.now();
+  const userId = session.user.id;
+  const scopedId = getScopedId(id, userId);
 
   try {
     const { error } = await supabase
       .from(tableName)
       .delete()
-      .eq('id', id)
-      .eq('user_id', session.user.id);
+      .or(`id.eq.${id},id.eq.${scopedId}`)
+      .eq('user_id', userId);
     if (error) {
       console.error(`[Supabase Delete] Error deleting from ${tableName}:`, error.message);
     } else {
+      lastLocalWriteTimestamp = Date.now();
       // Sync updated state (including adjusted XP) to cloud
       syncCurrentStateToCloud(useStepwiseStore.getState());
     }
@@ -224,7 +239,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       const goalId = track === 'GATE CS' ? 'gate_cs' : track === 'GATE DA' ? 'gate_da' : 'projects';
 
       return {
-        id: s.id,
+        id: getUnscopedId(s.id, userId),
         goal_id: goalId,
         track,
         title: s.title,
@@ -240,7 +255,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       const target = Number(j.episodes_or_chapters ?? j.target ?? 30);
       const completed = Number(j.completed ?? j.hours_spent ?? 0);
       return {
-        id: j.id,
+        id: getUnscopedId(j.id, userId),
         level: j.level || 'N5',
         resource_type: j.type || j.resource_type || 'PDF',
         title: j.title || 'Japanese Resource',
@@ -252,7 +267,7 @@ export async function fetchAndHydrateUserData(userId: string) {
 
     // 3. Transform PR Records
     const transformedPRs: PRRecord[] = (prRecords || []).map((pr) => ({
-      id: pr.id,
+      id: getUnscopedId(pr.id, userId),
       exercise: pr.exercise || 'Bench Press',
       weight_kg: Number(pr.weight ?? pr.weight_kg ?? 0),
       reps: Number(pr.reps ?? 1),
@@ -262,7 +277,7 @@ export async function fetchAndHydrateUserData(userId: string) {
 
     // 4. Transform Revision Matrix
     const transformedRevision: ChapterRevisionItem[] = (revisionMatrix || []).map((r) => ({
-      id: r.id,
+      id: getUnscopedId(r.id, userId),
       category: (r.track || r.category || 'gate_cs') as 'gate_cs' | 'gate_da' | 'general_aptitude',
       subject: r.subject || '',
       chapter: r.chapter || '',
@@ -277,7 +292,7 @@ export async function fetchAndHydrateUserData(userId: string) {
 
     // 5. Transform Projects
     const transformedProjects: ProjectItem[] = (projects || []).map((p) => ({
-      id: p.id,
+      id: getUnscopedId(p.id, userId),
       title: p.title || 'Untitled Project',
       description: p.description || '',
       category: p.category || 'Web App',
@@ -290,7 +305,7 @@ export async function fetchAndHydrateUserData(userId: string) {
 
     // 6. Transform Tech Stack
     const transformedTech: TechStackItem[] = (techStack || []).map((t) => ({
-      id: t.id,
+      id: getUnscopedId(t.id, userId),
       name: t.name || '',
       category: t.category || 'Frontend & UI',
       proficiency: t.proficiency || 'Learning',
@@ -299,7 +314,7 @@ export async function fetchAndHydrateUserData(userId: string) {
 
     // 7. Transform Daily Fitness Logs
     const transformedFitness: DailyFitnessLog[] = (dailyFitnessLogs || []).map((f) => ({
-      id: f.id,
+      id: getUnscopedId(f.id, userId),
       date: f.date || new Date().toISOString().split('T')[0],
       steps: Number(f.steps || 0),
       calories: Number(f.calories || 0),
@@ -309,8 +324,8 @@ export async function fetchAndHydrateUserData(userId: string) {
 
     // 8. Transform Lecture Logs
     const transformedLectureLogs: LectureLog[] = (lectureLogs || []).map((l) => ({
-      id: l.id,
-      subject_id: l.subject_id,
+      id: getUnscopedId(l.id, userId),
+      subject_id: getUnscopedId(l.subject_id, userId),
       date: l.date || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
       hours: Number(l.hours || 0),
       remarks: l.remarks || 'Study session logged',
@@ -319,7 +334,7 @@ export async function fetchAndHydrateUserData(userId: string) {
 
     // 9. Transform Roadmap Goals
     const transformedRoadmap: RoadmapItem[] = (roadmap || []).map((r) => ({
-      id: r.id,
+      id: getUnscopedId(r.id, userId),
       month: r.month || 'August 2026',
       week_number: Number(r.week_number || 1),
       goal: r.goal || '',
@@ -329,7 +344,7 @@ export async function fetchAndHydrateUserData(userId: string) {
 
     // 10. Transform Books
     const transformedBooks: Book[] = (books || []).map((b) => ({
-      id: b.id,
+      id: getUnscopedId(b.id, userId),
       title: b.title || 'Untitled Book',
       author: b.author || 'Unknown Author',
       category: b.category || 'General Reading',
@@ -448,7 +463,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('projects')) {
       if (state.projects && state.projects.length > 0) {
         const projectPayloads = state.projects.map((p) => ({
-          id: p.id,
+          id: getScopedId(p.id, userId),
           user_id: userId,
           title: p.title,
           description: p.description,
@@ -473,7 +488,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('tech_stack')) {
       if (state.techStack && state.techStack.length > 0) {
         const techPayloads = state.techStack.map((t) => ({
-          id: t.id,
+          id: getScopedId(t.id, userId),
           user_id: userId,
           name: t.name,
           category: t.category,
@@ -494,7 +509,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('subjects')) {
       if (state.subjects && state.subjects.length > 0) {
         const subjectPayloads = state.subjects.map((s) => ({
-          id: s.id,
+          id: getScopedId(s.id, userId),
           user_id: userId,
           title: s.title,
           track: s.track,
@@ -515,7 +530,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('revision_matrix')) {
       if (state.revisionMatrix && state.revisionMatrix.length > 0) {
         const revisionPayloads = state.revisionMatrix.map((r) => ({
-          id: r.id,
+          id: getScopedId(r.id, userId),
           user_id: userId,
           subject: r.subject,
           chapter: r.chapter,
@@ -540,7 +555,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('japanese_resources')) {
       if (state.japaneseResources && state.japaneseResources.length > 0) {
         const jpPayloads = state.japaneseResources.map((j) => ({
-          id: j.id,
+          id: getScopedId(j.id, userId),
           user_id: userId,
           title: j.title,
           type: j.resource_type,
@@ -563,7 +578,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('daily_fitness_logs')) {
       if (state.dailyFitnessLogs && state.dailyFitnessLogs.length > 0) {
         const fitnessPayloads = state.dailyFitnessLogs.map((f) => ({
-          id: f.id,
+          id: getScopedId(f.id, userId),
           user_id: userId,
           date: f.date,
           steps: f.steps,
@@ -584,7 +599,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('pr_records')) {
       if (state.prRecords && state.prRecords.length > 0) {
         const prPayloads = state.prRecords.map((pr) => ({
-          id: pr.id,
+          id: getScopedId(pr.id, userId),
           user_id: userId,
           exercise: pr.exercise,
           weight: pr.weight_kg,
@@ -606,9 +621,9 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('lecture_logs')) {
       if (state.lectureLogs && state.lectureLogs.length > 0) {
         const logPayloads = state.lectureLogs.map((l) => ({
-          id: l.id,
+          id: getScopedId(l.id, userId),
           user_id: userId,
-          subject_id: l.subject_id,
+          subject_id: getScopedId(l.subject_id, userId),
           hours: l.hours,
           remarks: l.remarks,
           created_at: l.created_at || new Date().toISOString(),
@@ -627,7 +642,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('roadmap')) {
       if (state.roadmap && state.roadmap.length > 0) {
         const roadmapPayloads = state.roadmap.map((r) => ({
-          id: r.id,
+          id: getScopedId(r.id, userId),
           user_id: userId,
           month: r.month,
           week_number: r.week_number,
@@ -649,7 +664,7 @@ export async function syncCurrentStateToCloud(
     if (shouldSync('books')) {
       if (state.books && state.books.length > 0) {
         const bookPayloads = state.books.map((b) => ({
-          id: b.id,
+          id: getScopedId(b.id, userId),
           user_id: userId,
           title: b.title,
           author: b.author,
