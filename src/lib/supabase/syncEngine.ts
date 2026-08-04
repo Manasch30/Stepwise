@@ -365,10 +365,27 @@ export async function fetchAndHydrateUserData(userId: string) {
       updated_at: b.updated_at || new Date().toISOString(),
     }));
 
+    const deduplicateTransformed = <T extends { id: string }>(items: T[]): T[] => {
+      const map = new Map<string, T>();
+      items.forEach((item) => map.set(item.id, item));
+      return Array.from(map.values());
+    };
+
+    const cleanSubjects = deduplicateTransformed(transformedSubjects);
+    const cleanJp = deduplicateTransformed(transformedJp);
+    const cleanPRs = deduplicateTransformed(transformedPRs);
+    const cleanRevision = deduplicateTransformed(transformedRevision);
+    const cleanProjects = deduplicateTransformed(transformedProjects);
+    const cleanTech = deduplicateTransformed(transformedTech);
+    const cleanFitness = deduplicateTransformed(transformedFitness);
+    const cleanLectureLogs = deduplicateTransformed(transformedLectureLogs);
+    const cleanRoadmap = deduplicateTransformed(transformedRoadmap);
+    const cleanBooks = deduplicateTransformed(transformedBooks);
+
     // 11. Reconstruct Event Stream feed from fetched records so Event Bus stream is never empty
     const reconstructedEvents: AppEvent[] = [];
-    transformedLectureLogs.forEach((l) => {
-      const sub = transformedSubjects.find((s) => s.id === l.subject_id);
+    cleanLectureLogs.forEach((l) => {
+      const sub = cleanSubjects.find((s) => s.id === l.subject_id);
       reconstructedEvents.push({
         id: 'evt_lec_' + l.id,
         type: 'LECTURE_LOGGED',
@@ -379,7 +396,7 @@ export async function fetchAndHydrateUserData(userId: string) {
       });
     });
 
-    transformedFitness.forEach((f) => {
+    cleanFitness.forEach((f) => {
       reconstructedEvents.push({
         id: 'evt_fit_' + f.id,
         type: 'FITNESS_LOGGED',
@@ -390,27 +407,30 @@ export async function fetchAndHydrateUserData(userId: string) {
       });
     });
 
-    // Sort events newest first
-    reconstructedEvents.sort(
+    // Deduplicate and sort events newest first
+    const eventMap = new Map<string, AppEvent>();
+    reconstructedEvents.forEach((evt) => eventMap.set(evt.id, evt));
+    const finalEvents = Array.from(eventMap.values());
+    finalEvents.sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
 
     // When Supabase query succeeds (non-null), remote data is authoritative for user state.
-    const finalSubjects = subjects !== null ? transformedSubjects : (useStepwiseStore.getState().subjects || []);
-    const finalTechStack = techStack !== null ? transformedTech : (useStepwiseStore.getState().techStack || []);
-    const finalJp = japaneseResources !== null ? transformedJp : (useStepwiseStore.getState().japaneseResources || []);
-    const finalProjects = projects !== null ? transformedProjects : (useStepwiseStore.getState().projects || []);
-    const finalRoadmap = roadmap !== null ? transformedRoadmap : (useStepwiseStore.getState().roadmap || []);
-    const finalBooks = books !== null ? transformedBooks : (useStepwiseStore.getState().books || []);
-    const finalPRs = prRecords !== null ? transformedPRs : (useStepwiseStore.getState().prRecords || []);
-    const finalFitness = dailyFitnessLogs !== null ? transformedFitness : (useStepwiseStore.getState().dailyFitnessLogs || []);
-    const finalLectureLogs = lectureLogs !== null ? transformedLectureLogs : (useStepwiseStore.getState().lectureLogs || []);
+    const finalSubjects = subjects !== null ? cleanSubjects : (useStepwiseStore.getState().subjects || []);
+    const finalTechStack = techStack !== null ? cleanTech : (useStepwiseStore.getState().techStack || []);
+    const finalJp = japaneseResources !== null ? cleanJp : (useStepwiseStore.getState().japaneseResources || []);
+    const finalProjects = projects !== null ? cleanProjects : (useStepwiseStore.getState().projects || []);
+    const finalRoadmap = roadmap !== null ? cleanRoadmap : (useStepwiseStore.getState().roadmap || []);
+    const finalBooks = books !== null ? cleanBooks : (useStepwiseStore.getState().books || []);
+    const finalPRs = prRecords !== null ? cleanPRs : (useStepwiseStore.getState().prRecords || []);
+    const finalFitness = dailyFitnessLogs !== null ? cleanFitness : (useStepwiseStore.getState().dailyFitnessLogs || []);
+    const finalLectureLogs = lectureLogs !== null ? cleanLectureLogs : (useStepwiseStore.getState().lectureLogs || []);
 
     // Merge & deduplicate Revision Matrix: start with initial default chapters, overlay Supabase records
     const revisionMap = new Map<string, ChapterRevisionItem>();
     initialRevisionMatrix.forEach((r) => revisionMap.set(r.id, r));
-    if (revisionMatrix !== null && transformedRevision.length > 0) {
-      transformedRevision.forEach((r) => {
+    if (revisionMatrix !== null && cleanRevision.length > 0) {
+      cleanRevision.forEach((r) => {
         const existing = revisionMap.get(r.id);
         if (existing) {
           revisionMap.set(r.id, {
@@ -447,8 +467,8 @@ export async function fetchAndHydrateUserData(userId: string) {
       roadmap: finalRoadmap,
       books: finalBooks,
       recentEvents:
-        reconstructedEvents.length > 0
-          ? reconstructedEvents.slice(0, 50)
+        finalEvents.length > 0
+          ? finalEvents.slice(0, 50)
           : (lectureLogs !== null && lectureLogs.length === 0 ? [] : state.recentEvents),
     }));
 
